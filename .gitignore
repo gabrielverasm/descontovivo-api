@@ -9,6 +9,9 @@ target/
 # Maven
 .mvn/wrapper/maven-wrapper.jar
 
+# Quarkus
+.quarkus/
+
 # IDE
 .idea/
 *.iml
