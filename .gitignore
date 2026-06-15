@@ -1,0 +1,27 @@
+# Java / Quarkus
+target/
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+
+# Maven
+.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+!.env.example
