@@ -17,6 +17,9 @@ public record PromotionSummaryResponse(
         String imageUrl,
         String availability,
         StoreRef store,
+        int likesCount,
+        int dislikesCount,
+        int commentsCount,
         OffsetDateTime createdAt,
         OffsetDateTime publishedAt
 ) {
@@ -28,6 +31,7 @@ public record PromotionSummaryResponse(
                 e.getCurrentPrice(), e.getOriginalPrice(), e.getCouponCode(),
                 e.getImageUrl(), e.getAvailability().name(),
                 new StoreRef(e.getStore().getSlug(), e.getStore().getName()),
+                e.getLikesCount(), e.getDislikesCount(), e.getCommentsCount(),
                 e.getCreatedAt(), e.getPublishedAt()
         );
     }

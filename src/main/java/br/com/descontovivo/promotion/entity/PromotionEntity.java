@@ -76,6 +76,15 @@ public class PromotionEntity {
     @Column(name = "removed_at")
     private OffsetDateTime removedAt;
 
+    @Column(name = "likes_count", nullable = false)
+    private int likesCount;
+
+    @Column(name = "dislikes_count", nullable = false)
+    private int dislikesCount;
+
+    @Column(name = "comments_count", nullable = false)
+    private int commentsCount;
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
     public String getSlug() { return slug; }
@@ -116,4 +125,10 @@ public class PromotionEntity {
     public void setRejectedAt(OffsetDateTime rejectedAt) { this.rejectedAt = rejectedAt; }
     public OffsetDateTime getRemovedAt() { return removedAt; }
     public void setRemovedAt(OffsetDateTime removedAt) { this.removedAt = removedAt; }
+    public int getLikesCount() { return likesCount; }
+    public void setLikesCount(int likesCount) { this.likesCount = likesCount; }
+    public int getDislikesCount() { return dislikesCount; }
+    public void setDislikesCount(int dislikesCount) { this.dislikesCount = dislikesCount; }
+    public int getCommentsCount() { return commentsCount; }
+    public void setCommentsCount(int commentsCount) { this.commentsCount = commentsCount; }
 }
