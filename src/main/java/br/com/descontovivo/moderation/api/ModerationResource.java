@@ -22,7 +22,7 @@ import java.util.UUID;
 @Consumes(MediaType.APPLICATION_JSON)
 public class ModerationResource {
 
-    @ConfigProperty(name = "app.admin-token")
+    @ConfigProperty(name = "app.admin-token", defaultValue = "dev-admin-token")
     String adminToken;
 
     private final PromotionRepository promotionRepository;
@@ -113,7 +113,7 @@ public class ModerationResource {
     }
 
     private void validateToken(String token) {
-        if (token == null || !token.equals(adminToken)) {
+        if (token == null || !token.trim().equals(adminToken.trim())) {
             throw new ForbiddenException("Invalid or missing admin token");
         }
     }

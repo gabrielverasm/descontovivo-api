@@ -117,6 +117,9 @@
                     <systemPropertyVariables>
                         <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
                     </systemPropertyVariables>
+                    <environmentVariables>
+                        <APP_ADMIN_TOKEN>test-admin-token</APP_ADMIN_TOKEN>
+                    </environmentVariables>
                 </configuration>
             </plugin>
         </plugins>

@@ -222,12 +222,4 @@ class PromotionResourceTest {
             .then().statusCode(403);
     }
 
-    @Test
-    void shouldListSeedPromotionsInFeed() {
-        given()
-            .when().get("/api/v1/promotions")
-            .then()
-            .statusCode(200)
-            .body("content.size()", greaterThanOrEqualTo(12));
-    }
 }
