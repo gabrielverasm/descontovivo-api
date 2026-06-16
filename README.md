@@ -64,3 +64,28 @@ Antes de iniciar a implementação Quarkus, serão definidos:
 - estrutura de pacotes;
 - estratégia de autenticação;
 - estratégia de testes.
+
+
+## Execução local (Docker)
+
+```bash
+cp .env.example .env
+docker compose up -d
+# API disponível em http://localhost:8080
+curl http://localhost:8080/api/v1/promotions
+```
+
+## Execução em produção
+
+Configurar as variáveis de ambiente:
+
+- `QUARKUS_DATASOURCE_JDBC_URL`
+- `QUARKUS_DATASOURCE_USERNAME`
+- `QUARKUS_DATASOURCE_PASSWORD`
+- `APP_ADMIN_TOKEN`
+- `QUARKUS_HTTP_CORS_ORIGINS`
+
+```bash
+docker build -t descontovivo-api .
+docker run -p 8080:8080 --env-file .env descontovivo-api
+```
