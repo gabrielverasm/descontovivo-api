@@ -52,6 +52,16 @@ Response DTO
 → representa saída da API para o frontend
 ```
 
+## Fluxo de camadas
+
+```txt
+Resource → Service → Repository
+```
+
+- Resources: anotações REST/segurança, recebem DTO, delegam ao service, retornam response.
+- Services (@ApplicationScoped): regras de negócio, validações, transações (@Transactional).
+- Repositories: consultas e persistência com Panache.
+
 ## Identificadores
 
 - UUID será usado como identificador interno.
