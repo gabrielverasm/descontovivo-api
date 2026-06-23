@@ -2,21 +2,22 @@ package br.com.descontovivo.moderation.api;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
 public record ModerationActionRequest(
         @NotNull ModerationAction action,
-        @NotBlank String reason,
-        String title,
-        String url,
-        String description,
+        @NotBlank @Size(max = 500) String reason,
+        @Size(max = 180) String title,
+        @Size(max = 2048) String url,
+        @Size(max = 2000) String description,
         BigDecimal currentPrice,
         BigDecimal originalPrice,
-        String couponCode,
-        String imageUrl,
-        String availability,
-        String storeSlug
+        @Size(max = 80) String couponCode,
+        @Size(max = 2048) String imageUrl,
+        @Size(max = 30) String availability,
+        @Size(max = 120) String storeSlug
 ) {
     public enum ModerationAction {
         APPROVE, REJECT, REMOVE, EDIT
