@@ -37,6 +37,7 @@ services:
       QUARKUS_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-descontovivo}
       QUARKUS_HTTP_CORS_ORIGINS: ${QUARKUS_HTTP_CORS_ORIGINS:-http://localhost:4200}
       OIDC_AUTH_SERVER_URL: http://keycloak:8080/realms/descontovivo
+      QUARKUS_OIDC_TOKEN_ISSUER: http://localhost:8082/realms/descontovivo
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-descontovivo-api}
     ports:
       - "8080:8080"

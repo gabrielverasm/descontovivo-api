@@ -77,17 +77,21 @@ docker compose up -d postgres keycloak api
 
 ## Getting a token manually (for testing)
 
-The realm JSON enables `directAccessGrantsEnabled=false` on `descontovivo-ui` for security.  
-For quick local curl testing, you can temporarily enable it in the Keycloak admin console, or create a separate test client.
-
-Example (if direct access is temporarily enabled):
+A dedicated client `descontovivo-cli` with `directAccessGrantsEnabled=true` exists for local testing.  
+Use the helper script:
 
 ```bash
-TOKEN=$(curl -s -X POST http://localhost:8082/realms/descontovivo/protocol/openid-connect/token \
-  -d "client_id=descontovivo-ui" \
-  -d "username=moderator" \
-  -d "password=moderator123" \
-  -d "grant_type=password" | jq -r .access_token)
+# Get token for any local user
+./scripts/get-token.sh user user123
+./scripts/get-token.sh moderator moderator123
+./scripts/get-token.sh admin-user admin123
 
+# Use in curl
+TOKEN=$(./scripts/get-token.sh moderator moderator123)
 curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/moderation/promotions
 ```
+
+## Issuer mismatch (Docker)
+
+The API container reaches Keycloak at `http://keycloak:8080`, but tokens obtained from the host have issuer `http://localhost:8082`.  
+The docker-compose sets `QUARKUS_OIDC_TOKEN_ISSUER=http://localhost:8082/realms/descontovivo` to override issuer validation locally while keeping JWKS discovery via the internal network.
