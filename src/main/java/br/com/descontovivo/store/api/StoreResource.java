@@ -1,6 +1,7 @@
 package br.com.descontovivo.store.api;
 
 import br.com.descontovivo.store.repository.StoreRepository;
+import jakarta.annotation.security.PermitAll;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 
@@ -8,6 +9,7 @@ import java.util.List;
 
 @Path("/api/v1/stores")
 @Produces(MediaType.APPLICATION_JSON)
+@PermitAll
 public class StoreResource {
 
     private final StoreRepository repository;

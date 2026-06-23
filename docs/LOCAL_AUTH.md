@@ -3,7 +3,7 @@
 ## Overview
 
 Local Keycloak instance for OIDC/JWT Bearer Token validation during development.  
-Endpoints are **not yet protected** — this will be done in a future step.
+Protected endpoints require a valid `Authorization: Bearer <access_token>` header.
 
 ## How to run
 
@@ -37,31 +37,57 @@ docker compose up -d postgres keycloak api
 
 > These credentials exist only in the imported realm for local development.
 
+## Endpoint security
+
+### Public (no token required)
+
+- `GET /api/v1/system/info`
+- `GET /api/v1/stores`
+- `GET /api/v1/stores/{slug}`
+- `GET /api/v1/promotions`
+- `GET /api/v1/promotions/{slug}`
+- `GET /api/v1/promotions/{slug}/comments`
+
+### Authenticated (valid token + email_verified=true)
+
+- `POST /api/v1/promotions`
+- `PUT /api/v1/promotions/{slug}/vote`
+- `DELETE /api/v1/promotions/{slug}/vote`
+- `POST /api/v1/promotions/{slug}/comments`
+- `POST /api/v1/comments/{id}/replies`
+
+### Moderator/Admin (role: moderator or admin)
+
+- `GET /api/v1/moderation/promotions`
+- `PATCH /api/v1/moderation/promotions/{id}`
+- `PATCH /api/v1/moderation/comments/{id}`
+
+## Important changes
+
+- **X-Admin-Token has been removed.** Moderation now uses OIDC roles (`moderator`, `admin`).
+- **clientId is no longer sent by the frontend.** The user identity comes from the JWT `sub` claim.
+- The frontend must use the `sub` claim implicitly via the token — do not send user ID in the request body.
+
 ## How authentication works
 
 1. Frontend (Angular) authenticates via **Authorization Code Flow + PKCE** against Keycloak.
 2. Frontend sends requests to the API with `Authorization: Bearer <access_token>`.
 3. API validates the JWT signature and claims using Quarkus OIDC (bearer-only / service mode).
-
-## Current state
-
-- Keycloak is running and issuing tokens.
-- API is configured to validate tokens (`quarkus.oidc.enabled=true`).
-- **No endpoints are protected yet** — `@RolesAllowed` will be added in the next step.
-- Legacy `X-Admin-Token` for moderation is still active (temporary).
+4. User identity (`sub`) is extracted from the token — no need to pass it in request bodies.
 
 ## Getting a token manually (for testing)
 
-Since `descontovivo-ui` is a public client with PKCE, direct password grant is disabled.  
-For quick local testing, you can use the Keycloak token endpoint with a temporary direct-access client, or use the Keycloak admin console to view tokens.
+The realm JSON enables `directAccessGrantsEnabled=false` on `descontovivo-ui` for security.  
+For quick local curl testing, you can temporarily enable it in the Keycloak admin console, or create a separate test client.
 
-Alternatively, enable `directAccessGrantsEnabled` temporarily on `descontovivo-ui` for local curl tests:
+Example (if direct access is temporarily enabled):
 
 ```bash
-# Only if directAccessGrantsEnabled is temporarily enabled on the client:
-curl -s -X POST http://localhost:8082/realms/descontovivo/protocol/openid-connect/token \
+TOKEN=$(curl -s -X POST http://localhost:8082/realms/descontovivo/protocol/openid-connect/token \
   -d "client_id=descontovivo-ui" \
-  -d "username=user" \
-  -d "password=user123" \
-  -d "grant_type=password" | jq .access_token
+  -d "username=moderator" \
+  -d "password=moderator123" \
+  -d "grant_type=password" | jq -r .access_token)
+
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/moderation/promotions
 ```

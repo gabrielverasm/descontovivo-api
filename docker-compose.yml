@@ -35,7 +35,6 @@ services:
       QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-descontovivo}
       QUARKUS_DATASOURCE_USERNAME: ${POSTGRES_USER:-descontovivo}
       QUARKUS_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-descontovivo}
-      APP_ADMIN_TOKEN: ${APP_ADMIN_TOKEN:-change-me}
       QUARKUS_HTTP_CORS_ORIGINS: ${QUARKUS_HTTP_CORS_ORIGINS:-http://localhost:4200}
       OIDC_AUTH_SERVER_URL: http://keycloak:8080/realms/descontovivo
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-descontovivo-api}

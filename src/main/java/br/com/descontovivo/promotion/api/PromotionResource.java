@@ -8,7 +8,10 @@ import br.com.descontovivo.promotion.support.PromotionNormalizer;
 import br.com.descontovivo.promotion.support.SlugGenerator;
 import br.com.descontovivo.shared.api.ConflictException;
 import br.com.descontovivo.shared.api.PagedResponse;
+import br.com.descontovivo.shared.security.CurrentUserProvider;
 import br.com.descontovivo.store.repository.StoreRepository;
+import io.quarkus.security.Authenticated;
+import jakarta.annotation.security.PermitAll;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
@@ -28,13 +31,18 @@ public class PromotionResource {
 
     private final PromotionRepository promotionRepository;
     private final StoreRepository storeRepository;
+    private final CurrentUserProvider currentUserProvider;
 
-    public PromotionResource(PromotionRepository promotionRepository, StoreRepository storeRepository) {
+    public PromotionResource(PromotionRepository promotionRepository,
+                             StoreRepository storeRepository,
+                             CurrentUserProvider currentUserProvider) {
         this.promotionRepository = promotionRepository;
         this.storeRepository = storeRepository;
+        this.currentUserProvider = currentUserProvider;
     }
 
     @GET
+    @PermitAll
     public PagedResponse<PromotionSummaryResponse> list(
             @QueryParam("page") @DefaultValue("0") int page,
             @QueryParam("size") @DefaultValue("20") int size,
@@ -51,6 +59,7 @@ public class PromotionResource {
 
     @GET
     @Path("/{slug}")
+    @PermitAll
     public PromotionDetailResponse getBySlug(@PathParam("slug") String slug) {
         return promotionRepository.findPublishedBySlug(slug)
                 .map(PromotionDetailResponse::from)
@@ -59,7 +68,10 @@ public class PromotionResource {
 
     @POST
     @Transactional
+    @Authenticated
     public Response create(@Valid PromotionCreateRequest request) {
+        var user = currentUserProvider.requireVerifiedUser();
+
         var store = storeRepository.findBySlug(request.storeSlug())
                 .orElseThrow(() -> new NotFoundException("Store not found: " + request.storeSlug()));
 

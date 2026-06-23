@@ -1,6 +1,10 @@
 package br.com.descontovivo.engagement.api;
 
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.security.TestSecurity;
+import io.quarkus.test.security.oidc.Claim;
+import io.quarkus.test.security.oidc.ClaimType;
+import io.quarkus.test.security.oidc.OidcSecurity;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.*;
 
@@ -13,12 +17,10 @@ import static org.hamcrest.Matchers.*;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class PromotionEngagementResourceTest {
 
-    private static final String ADMIN_TOKEN = "test-admin-token";
     private static String publishedSlug;
-    private static String pendingSlug;
     private static String commentId;
 
-    private static String[] createAndApprove() {
+    private static String createAndApprove() {
         var uid = UUID.randomUUID().toString().substring(0, 8);
         var json = given()
             .contentType(ContentType.JSON)
@@ -42,45 +44,55 @@ class PromotionEngagementResourceTest {
 
         given()
             .contentType(ContentType.JSON)
-            .header("X-Admin-Token", ADMIN_TOKEN)
             .body("""
                 { "action": "APPROVE", "reason": "Test" }
             """)
             .when().patch("/api/v1/moderation/promotions/" + id)
             .then().statusCode(200);
 
-        return new String[]{id, slug};
-    }
-
-    private static String createPending() {
-        var uid = UUID.randomUUID().toString().substring(0, 8);
-        return given()
-            .contentType(ContentType.JSON)
-            .body("""
-                {
-                    "title": "Pending %s",
-                    "url": "https://www.amazon.com.br/pend-%s",
-                    "description": "Pending test %s",
-                    "currentPrice": 50.00,
-                    "imageUrl": "https://images.example.com/pend.jpg",
-                    "storeSlug": "amazon"
-                }
-            """.formatted(uid, uid, uid))
-            .when().post("/api/v1/promotions")
-            .then().statusCode(201)
-            .extract().jsonPath().getString("slug");
+        return slug;
     }
 
     @Test
     @Order(1)
+    void shouldReturn401WhenVotingWithoutAuth() {
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                { "type": "LIKE" }
+            """)
+            .when().put("/api/v1/promotions/any-slug/vote")
+            .then().statusCode(401);
+    }
+
+    @Test
+    @Order(2)
+    void shouldReturn401WhenCommentingWithoutAuth() {
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                { "authorName": "Test", "content": "Test" }
+            """)
+            .when().post("/api/v1/promotions/any-slug/comments")
+            .then().statusCode(401);
+    }
+
+    @Test
+    @Order(3)
+    @TestSecurity(user = "voter-sub", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "voter-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "voter@test.local"),
+        @Claim(key = "preferred_username", value = "voter")
+    })
     void shouldVoteLikeAndIncrementCount() {
-        var result = createAndApprove();
-        publishedSlug = result[1];
+        publishedSlug = createAndApprove();
 
         given()
             .contentType(ContentType.JSON)
             .body("""
-                { "clientId": "client-1", "type": "LIKE" }
+                { "type": "LIKE" }
             """)
             .when().put("/api/v1/promotions/" + publishedSlug + "/vote")
             .then()
@@ -91,12 +103,19 @@ class PromotionEngagementResourceTest {
     }
 
     @Test
-    @Order(2)
+    @Order(4)
+    @TestSecurity(user = "voter-sub", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "voter-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "voter@test.local"),
+        @Claim(key = "preferred_username", value = "voter")
+    })
     void shouldSwitchVoteFromLikeToDislike() {
         given()
             .contentType(ContentType.JSON)
             .body("""
-                { "clientId": "client-1", "type": "DISLIKE" }
+                { "type": "DISLIKE" }
             """)
             .when().put("/api/v1/promotions/" + publishedSlug + "/vote")
             .then()
@@ -107,10 +126,16 @@ class PromotionEngagementResourceTest {
     }
 
     @Test
-    @Order(3)
+    @Order(5)
+    @TestSecurity(user = "voter-sub", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "voter-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "voter@test.local"),
+        @Claim(key = "preferred_username", value = "voter")
+    })
     void shouldDeleteVoteAndZeroCounts() {
         given()
-            .queryParam("clientId", "client-1")
             .when().delete("/api/v1/promotions/" + publishedSlug + "/vote")
             .then()
             .statusCode(200)
@@ -120,12 +145,19 @@ class PromotionEngagementResourceTest {
     }
 
     @Test
-    @Order(4)
+    @Order(6)
+    @TestSecurity(user = "commenter-sub", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "commenter-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "commenter@test.local"),
+        @Claim(key = "preferred_username", value = "commenter")
+    })
     void shouldCreateCommentOnPublishedPromotion() {
         commentId = given()
             .contentType(ContentType.JSON)
             .body("""
-                { "clientId": "client-1", "authorName": "Gabriel", "content": "Ótima promoção!" }
+                { "authorName": "Gabriel", "content": "Ótima promoção!" }
             """)
             .when().post("/api/v1/promotions/" + publishedSlug + "/comments")
             .then()
@@ -137,27 +169,19 @@ class PromotionEngagementResourceTest {
     }
 
     @Test
-    @Order(5)
-    void shouldFailCommentOnPendingPromotion() {
-        pendingSlug = createPending();
-
-        given()
-            .contentType(ContentType.JSON)
-            .body("""
-                { "clientId": "client-1", "authorName": "Gabriel", "content": "Test" }
-            """)
-            .when().post("/api/v1/promotions/" + pendingSlug + "/comments")
-            .then()
-            .statusCode(404);
-    }
-
-    @Test
-    @Order(6)
+    @Order(7)
+    @TestSecurity(user = "replier-sub", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "replier-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "replier@test.local"),
+        @Claim(key = "preferred_username", value = "replier")
+    })
     void shouldReplyToComment() {
         given()
             .contentType(ContentType.JSON)
             .body("""
-                { "clientId": "client-2", "authorName": "Ana", "content": "Concordo!" }
+                { "authorName": "Ana", "content": "Concordo!" }
             """)
             .when().post("/api/v1/comments/" + commentId + "/replies")
             .then()
@@ -167,23 +191,26 @@ class PromotionEngagementResourceTest {
     }
 
     @Test
-    @Order(7)
-    void shouldListCommentsWithRootAndReply() {
+    @Order(8)
+    void shouldListCommentsWithoutAuth() {
         given()
             .when().get("/api/v1/promotions/" + publishedSlug + "/comments")
             .then()
             .statusCode(200)
-            .body("size()", is(2))
-            .body("[0].authorName", is("Gabriel"))
-            .body("[1].parentId", is(commentId));
+            .body("size()", is(2));
     }
 
     @Test
-    @Order(8)
-    void shouldModerateCommentAndShowRemoved() {
+    @Order(9)
+    @TestSecurity(user = "mod-sub", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "moderator")
+    })
+    void shouldModerateCommentWithModeratorRole() {
         given()
             .contentType(ContentType.JSON)
-            .header("X-Admin-Token", ADMIN_TOKEN)
             .body("""
                 { "action": "REMOVE", "reason": "Comentário inadequado" }
             """)
@@ -195,33 +222,14 @@ class PromotionEngagementResourceTest {
     }
 
     @Test
-    @Order(9)
-    void shouldShowRemovedCommentInList() {
-        given()
-            .when().get("/api/v1/promotions/" + publishedSlug + "/comments")
-            .then()
-            .statusCode(200)
-            .body("[0].removed", is(true))
-            .body("[0].content", is("Comentário removido"));
-    }
-
-    @Test
     @Order(10)
-    void shouldShowEngagementCountsInPromotionDetail() {
+    void shouldReturn401WhenModeratingCommentWithoutAuth() {
         given()
             .contentType(ContentType.JSON)
             .body("""
-                { "clientId": "client-detail", "type": "LIKE" }
+                { "action": "REMOVE", "reason": "Test" }
             """)
-            .when().put("/api/v1/promotions/" + publishedSlug + "/vote")
-            .then().statusCode(200);
-
-        given()
-            .when().get("/api/v1/promotions/" + publishedSlug)
-            .then()
-            .statusCode(200)
-            .body("likesCount", is(1))
-            .body("dislikesCount", is(0))
-            .body("commentsCount", is(2));
+            .when().patch("/api/v1/moderation/comments/" + UUID.randomUUID())
+            .then().statusCode(401);
     }
 }

@@ -5,6 +5,8 @@ import br.com.descontovivo.engagement.entity.VoteType;
 import br.com.descontovivo.engagement.repository.PromotionVoteRepository;
 import br.com.descontovivo.promotion.entity.PromotionEntity;
 import br.com.descontovivo.promotion.repository.PromotionRepository;
+import br.com.descontovivo.shared.security.CurrentUserProvider;
+import io.quarkus.security.Authenticated;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
@@ -16,25 +18,31 @@ import java.time.OffsetDateTime;
 @Path("/api/v1/promotions/{slug}/vote")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
+@Authenticated
 public class PromotionVoteResource {
 
     private final PromotionRepository promotionRepository;
     private final PromotionVoteRepository voteRepository;
+    private final CurrentUserProvider currentUserProvider;
 
     public PromotionVoteResource(PromotionRepository promotionRepository,
-                                 PromotionVoteRepository voteRepository) {
+                                 PromotionVoteRepository voteRepository,
+                                 CurrentUserProvider currentUserProvider) {
         this.promotionRepository = promotionRepository;
         this.voteRepository = voteRepository;
+        this.currentUserProvider = currentUserProvider;
     }
 
     @PUT
     @Transactional
     public Response vote(@PathParam("slug") String slug, @Valid PromotionVoteRequest request) {
+        var user = currentUserProvider.requireVerifiedUser();
         var promotion = findPublished(slug);
+        var userSubject = user.subject();
         var voteType = VoteType.valueOf(request.type());
         var now = OffsetDateTime.now();
 
-        var existing = voteRepository.findByPromotionAndClient(promotion.getId(), request.clientId());
+        var existing = voteRepository.findByPromotionAndClient(promotion.getId(), userSubject);
 
         if (existing.isPresent()) {
             var vote = existing.get();
@@ -55,7 +63,7 @@ public class PromotionVoteResource {
         } else {
             var vote = new PromotionVoteEntity();
             vote.setPromotion(promotion);
-            vote.setClientId(request.clientId());
+            vote.setClientId(userSubject);
             vote.setVoteType(voteType);
             vote.setCreatedAt(now);
             vote.setUpdatedAt(now);
@@ -74,9 +82,10 @@ public class PromotionVoteResource {
 
     @DELETE
     @Transactional
-    public Response removeVote(@PathParam("slug") String slug, @QueryParam("clientId") String clientId) {
+    public Response removeVote(@PathParam("slug") String slug) {
+        var user = currentUserProvider.requireVerifiedUser();
         var promotion = findPublished(slug);
-        var existing = voteRepository.findByPromotionAndClient(promotion.getId(), clientId);
+        var existing = voteRepository.findByPromotionAndClient(promotion.getId(), user.subject());
 
         if (existing.isPresent()) {
             var vote = existing.get();
