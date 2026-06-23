@@ -35,14 +35,25 @@
       "standardFlowEnabled": false,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false
+    },
+    {
+      "clientId": "descontovivo-cli",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true
     }
   ],
   "users": [
     {
       "username": "user",
+      "firstName": "Local",
+      "lastName": "User",
       "email": "user@descontovivo.local",
       "emailVerified": true,
       "enabled": true,
+      "requiredActions": [],
       "credentials": [
         { "type": "password", "value": "user123", "temporary": false }
       ],
@@ -50,9 +61,12 @@
     },
     {
       "username": "moderator",
+      "firstName": "Local",
+      "lastName": "Moderator",
       "email": "moderator@descontovivo.local",
       "emailVerified": true,
       "enabled": true,
+      "requiredActions": [],
       "credentials": [
         { "type": "password", "value": "moderator123", "temporary": false }
       ],
@@ -60,9 +74,12 @@
     },
     {
       "username": "admin-user",
+      "firstName": "Local",
+      "lastName": "Admin",
       "email": "admin@descontovivo.local",
       "emailVerified": true,
       "enabled": true,
+      "requiredActions": [],
       "credentials": [
         { "type": "password", "value": "admin123", "temporary": false }
       ],
