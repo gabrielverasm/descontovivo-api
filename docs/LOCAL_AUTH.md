@@ -91,6 +91,16 @@ TOKEN=$(./scripts/get-token.sh moderator moderator123)
 curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/moderation/promotions
 ```
 
+## Smoke test
+
+Validates the complete authenticated flow (create → approve → feed → vote → comment):
+
+```bash
+./scripts/smoke-auth-flow.sh
+```
+
+Requires containers already running. Configure `API_URL` if the API is not on `http://localhost:8080`.
+
 ## Issuer mismatch (Docker)
 
 The API container reaches Keycloak at `http://keycloak:8080`, but tokens obtained from the host have issuer `http://localhost:8082`.  
