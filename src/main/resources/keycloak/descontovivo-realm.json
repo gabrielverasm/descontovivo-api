@@ -1,0 +1,72 @@
+{
+  "realm": "descontovivo",
+  "enabled": true,
+  "roles": {
+    "realm": [
+      { "name": "user", "description": "Regular user" },
+      { "name": "moderator", "description": "Content moderator" },
+      { "name": "admin", "description": "Administrator" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "descontovivo-ui",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:4200/*",
+        "http://localhost:8080/*"
+      ],
+      "webOrigins": [
+        "http://localhost:4200"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    },
+    {
+      "clientId": "descontovivo-api",
+      "enabled": true,
+      "bearerOnly": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false
+    }
+  ],
+  "users": [
+    {
+      "username": "user",
+      "email": "user@descontovivo.local",
+      "emailVerified": true,
+      "enabled": true,
+      "credentials": [
+        { "type": "password", "value": "user123", "temporary": false }
+      ],
+      "realmRoles": ["user"]
+    },
+    {
+      "username": "moderator",
+      "email": "moderator@descontovivo.local",
+      "emailVerified": true,
+      "enabled": true,
+      "credentials": [
+        { "type": "password", "value": "moderator123", "temporary": false }
+      ],
+      "realmRoles": ["user", "moderator"]
+    },
+    {
+      "username": "admin-user",
+      "email": "admin@descontovivo.local",
+      "emailVerified": true,
+      "enabled": true,
+      "credentials": [
+        { "type": "password", "value": "admin123", "temporary": false }
+      ],
+      "realmRoles": ["user", "moderator", "admin"]
+    }
+  ]
+}

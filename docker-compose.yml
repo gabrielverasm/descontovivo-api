@@ -15,6 +15,17 @@ services:
       timeout: 3s
       retries: 5
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    ports:
+      - "8082:8080"
+    volumes:
+      - ./src/main/resources/keycloak:/opt/keycloak/data/import:ro
+
   api:
     build: .
     depends_on:
@@ -26,6 +37,8 @@ services:
       QUARKUS_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-descontovivo}
       APP_ADMIN_TOKEN: ${APP_ADMIN_TOKEN:-change-me}
       QUARKUS_HTTP_CORS_ORIGINS: ${QUARKUS_HTTP_CORS_ORIGINS:-http://localhost:4200}
+      OIDC_AUTH_SERVER_URL: http://keycloak:8080/realms/descontovivo
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-descontovivo-api}
     ports:
       - "8080:8080"
 
