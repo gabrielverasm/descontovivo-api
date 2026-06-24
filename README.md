@@ -21,8 +21,7 @@ API principal consumida pelo frontend `descontovivo-ui`.
 ## Arquitetura
 
 - Monólito modular (hexagonal pragmático)
-- Módulos atuais: `promotion`, `engagement`, `store`, `moderation`, `shared`
-- Módulo planejado: `account`
+- Módulos atuais: `promotion`, `engagement`, `store`, `moderation`, `account`, `shared`
 - Request/Response DTOs, Domain Value Objects, Entities JPA, Panache Repositories
 
 ## Desenvolvimento local
@@ -97,6 +96,14 @@ docker run -p 8080:8080 --env-file .env descontovivo-api
 - Swagger UI: **desligado**
 - OpenAPI endpoint: **desligado**
 - Health check: **ativo** em `/q/health`
+
+## Integração com Frontend Angular
+
+O contrato completo para integração com `descontovivo-ui` (Angular) está documentado em:
+
+→ [`docs/API_CONTRACTS.md`](docs/API_CONTRACTS.md)
+
+Inclui: endpoints públicos/autenticados/moderação, regras de autorização, tratamento de erros HTTP e variáveis de configuração OIDC para o SPA.
 
 ## Checklist de produção
 
