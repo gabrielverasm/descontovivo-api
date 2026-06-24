@@ -1,0 +1,18 @@
+# =============================================================================
+# Docker Compose — Keycloak local para desenvolvimento
+# Uso: docker compose -f docker-compose.keycloak.yml up -d
+# NÃO usar em produção. Storage em memória (H2 dev mode).
+# =============================================================================
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.6.3
+    container_name: descontovivo-keycloak
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    ports:
+      - "8082:8080"
+    volumes:
+      - ./docker/keycloak:/opt/keycloak/data/import:ro

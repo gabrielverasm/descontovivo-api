@@ -1,0 +1,95 @@
+{
+  "realm": "descontovivo",
+  "enabled": true,
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": false,
+  "verifyEmail": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "sslRequired": "none",
+  "roles": {
+    "realm": [
+      { "name": "user", "description": "Usuário comum" },
+      { "name": "moderator", "description": "Moderador de conteúdo" },
+      { "name": "admin", "description": "Administrador do sistema" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "descontovivo-ui",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://localhost:4200/*"],
+      "webOrigins": ["http://localhost:4200"],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:4200/*",
+        "pkce.code.challenge.method": "S256"
+      }
+    },
+    {
+      "clientId": "descontovivo-api",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false
+    }
+  ],
+  "users": [
+    {
+      "username": "user",
+      "firstName": "User",
+      "lastName": "DescontoVivo",
+      "email": "user@descontovivo.local",
+      "emailVerified": true,
+      "enabled": true,
+      "requiredActions": [],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "user123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["user"]
+    },
+    {
+      "username": "moderator",
+      "firstName": "Moderator",
+      "lastName": "DescontoVivo",
+      "email": "moderator@descontovivo.local",
+      "emailVerified": true,
+      "enabled": true,
+      "requiredActions": [],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "moderator123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["user", "moderator"]
+    },
+    {
+      "username": "admin-user",
+      "firstName": "Admin",
+      "lastName": "DescontoVivo",
+      "email": "admin@descontovivo.local",
+      "emailVerified": true,
+      "enabled": true,
+      "requiredActions": [],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["user", "admin"]
+    }
+  ]
+}
