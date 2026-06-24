@@ -1,23 +1,10 @@
 # DescontoVivo API
 
-Backend do DescontoVivo, um portal de promoções com foco em comunidade, contexto e sinais de confiança.
+Backend do DescontoVivo — portal de promoções com foco em comunidade, contexto e sinais de confiança.
 
-Este repositório será a API principal consumida pelo frontend `descontovivo-ui`.
+API principal consumida pelo frontend `descontovivo-ui`.
 
-## Objetivo
-
-Construir uma API limpa, testável e evolutiva para:
-
-- listar promoções;
-- detalhar promoções;
-- publicar promoções;
-- moderar publicações;
-- registrar votos;
-- registrar comentários;
-- organizar lojas e categorias;
-- integrar autenticação com Keycloak/OIDC.
-
-## Stack planejada
+## Stack
 
 - Java 25 LTS
 - Quarkus 3.33.x LTS
@@ -29,63 +16,95 @@ Construir uma API limpa, testável e evolutiva para:
 - SmallRye OpenAPI
 - SmallRye Health
 - Keycloak/OIDC
-- JUnit 5
-- RestAssured
-- Dev Services/Testcontainers
+- JUnit 5 / RestAssured / Testcontainers (Dev Services)
 
-## Arquitetura planejada
+## Arquitetura
 
-- Monólito modular
-- Arquitetura hexagonal pragmática
-- Request DTOs para entrada da API
-- Response DTOs para saída da API
-- Domain Value Objects para regras e tipos fortes
-- Entities JPA/Panache separadas do domínio
-- Panache Repository para persistência
+- Monólito modular (hexagonal pragmático)
+- Módulos atuais: `promotion`, `engagement`, `store`, `moderation`, `shared`
+- Módulo planejado: `account`
+- Request/Response DTOs, Domain Value Objects, Entities JPA, Panache Repositories
 
-## Módulos iniciais
+## Desenvolvimento local
 
-- `promotion`
-- `engagement`
-- `store`
-- `moderation`
-- `account`
-- `shared`
-
-## Status
-
-Projeto em fase de desenho arquitetural.
-
-Antes de iniciar a implementação Quarkus, serão definidos:
-
-- contratos REST;
-- regras de negócio do MVP;
-- decisões arquiteturais;
-- estrutura de pacotes;
-- estratégia de autenticação;
-- estratégia de testes.
-
-
-## Execução local (Docker)
+### Com Docker Compose (Keycloak + PostgreSQL)
 
 ```bash
 cp .env.example .env
 docker compose up -d
 # API disponível em http://localhost:8080
-curl http://localhost:8080/api/v1/promotions
 ```
+
+### Modo dev
+
+Em dev, PostgreSQL pode ser provisionado por Dev Services/Testcontainers; Keycloak local pode ser iniciado via Docker Compose em http://localhost:8082.
+
+```bash
+./mvnw quarkus:dev
+```
+
+### URLs úteis em dev
+
+| Recurso       | URL                                      |
+|---------------|------------------------------------------|
+| API base      | http://localhost:8080/api/v1/promotions   |
+| Swagger UI    | http://localhost:8080/q/swagger-ui/       |
+| OpenAPI spec  | http://localhost:8080/q/openapi           |
+| Health check  | http://localhost:8080/q/health            |
+| Keycloak      | http://localhost:8082/ (Docker Compose)   |
+
+## Testes
+
+```bash
+./mvnw clean test
+```
+
+Os testes usam `@QuarkusTest` + Dev Services (Testcontainers), não necessitam infraestrutura externa.
+
+Cobertura inclui:
+
+- CRUD de promoções (auth, 401, 403, 409)
+- Votação e comentários
+- Moderação de promoções e comentários
+- Validação de constraints (`@Size`, `@NotBlank`) → HTTP 400
+- `IllegalArgumentExceptionMapper` → HTTP 422
+- Stores e system info
 
 ## Execução em produção
 
-Configurar as variáveis de ambiente:
+### Variáveis de ambiente obrigatórias
 
-- `QUARKUS_DATASOURCE_JDBC_URL`
-- `QUARKUS_DATASOURCE_USERNAME`
-- `QUARKUS_DATASOURCE_PASSWORD`
-- `APP_ADMIN_TOKEN`
-- `QUARKUS_HTTP_CORS_ORIGINS`
+| Variável                            | Descrição                          |
+|-------------------------------------|------------------------------------|
+| `QUARKUS_DATASOURCE_JDBC_URL`       | JDBC URL do PostgreSQL             |
+| `QUARKUS_DATASOURCE_USERNAME`       | Usuário do banco                   |
+| `QUARKUS_DATASOURCE_PASSWORD`       | Senha do banco                     |
+| `OIDC_AUTH_SERVER_URL`              | URL do realm Keycloak              |
+| `OIDC_CLIENT_ID`                    | Client ID OIDC                     |
+| `QUARKUS_HTTP_CORS_ORIGINS`         | Origens CORS permitidas            |
+
+> **Override avançado:** também é possível usar `QUARKUS_OIDC_AUTH_SERVER_URL` e `QUARKUS_OIDC_CLIENT_ID` diretamente, que sobrescrevem qualquer valor do application.properties.
+
+### Build e deploy
 
 ```bash
 docker build -t descontovivo-api .
 docker run -p 8080:8080 --env-file .env descontovivo-api
 ```
+
+### Comportamento em produção
+
+- Swagger UI: **desligado**
+- OpenAPI endpoint: **desligado**
+- Health check: **ativo** em `/q/health`
+
+## Checklist de produção
+
+- [ ] Datasource configurado via variáveis de ambiente
+- [ ] OIDC/Keycloak configurado e acessível
+- [ ] CORS restrito apenas a origens do frontend
+- [ ] Swagger UI e OpenAPI desligados (`%prod`)
+- [ ] Secrets fora do repositório Git (usar `.env` ou secrets manager)
+- [ ] Health check ativo (`/q/health`)
+- [ ] Migrations Flyway aplicadas automaticamente no startup
+- [ ] Testes passando antes de deploy (`./mvnw clean test`)
