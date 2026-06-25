@@ -1,0 +1,117 @@
+name: Deploy API
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy-api-production
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      - name: Run tests
+        run: ./mvnw clean verify -q
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+
+  deploy:
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy compose file to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          port: ${{ secrets.VPS_PORT }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: docker-compose.prod.yml
+          target: /opt/descontovivo/api/
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          port: ${{ secrets.VPS_PORT }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: API_DB_URL,API_DB_USER,API_DB_PASSWORD,API_OIDC_AUTH_SERVER_URL,API_OIDC_CLIENT_ID,API_CORS_ORIGINS,IMAGE_TAG
+          script: |
+            cd /opt/descontovivo/api
+            umask 077
+            safe_val() {
+              escaped=$(printf '%s' "$2" | sed "s/'/'\\\\''/g")
+              printf "%s='%s'\n" "$1" "$escaped"
+            }
+            {
+              safe_val QUARKUS_DATASOURCE_JDBC_URL "${API_DB_URL}"
+              safe_val QUARKUS_DATASOURCE_USERNAME "${API_DB_USER}"
+              safe_val QUARKUS_DATASOURCE_PASSWORD "${API_DB_PASSWORD}"
+              safe_val OIDC_AUTH_SERVER_URL "${API_OIDC_AUTH_SERVER_URL}"
+              safe_val OIDC_CLIENT_ID "${API_OIDC_CLIENT_ID}"
+              safe_val QUARKUS_HTTP_CORS_ORIGINS "${API_CORS_ORIGINS}"
+              echo "IMAGE_TAG=${IMAGE_TAG}"
+            } > .env
+            chmod 600 .env
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+        env:
+          API_DB_URL: ${{ secrets.API_DB_URL }}
+          API_DB_USER: ${{ secrets.API_DB_USER }}
+          API_DB_PASSWORD: ${{ secrets.API_DB_PASSWORD }}
+          API_OIDC_AUTH_SERVER_URL: ${{ secrets.API_OIDC_AUTH_SERVER_URL }}
+          API_OIDC_CLIENT_ID: ${{ secrets.API_OIDC_CLIENT_ID }}
+          API_CORS_ORIGINS: ${{ secrets.API_CORS_ORIGINS }}
+          IMAGE_TAG: ${{ github.sha }}
+
+      - name: Health check
+        run: |
+          echo "Waiting for API to start..."
+          sleep 15
+          for i in $(seq 1 10); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://api.descontovivo.com/q/health || true)
+            if [ "$STATUS" = "200" ]; then
+              echo "Health check passed"
+              exit 0
+            fi
+            echo "Attempt $i: status=$STATUS, retrying..."
+            sleep 5
+          done
+          echo "Health check failed"
+          exit 1
