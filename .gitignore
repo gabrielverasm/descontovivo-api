@@ -29,3 +29,11 @@ Thumbs.db
 .env.*
 !.env.example
 !.env.prod.example
+
+# Backups and exports
+backups/
+*.tar.gz
+*.tgz
+*.zip
+*realm*.json
+*keycloak*.json

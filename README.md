@@ -115,3 +115,41 @@ Inclui: endpoints públicos/autenticados/moderação, regras de autorização, t
 - [ ] Health check ativo (`/q/health`)
 - [ ] Migrations Flyway aplicadas automaticamente no startup
 - [ ] Testes passando antes de deploy (`./mvnw clean test`)
+
+### Keycloak — o que precisa bater em produção
+
+| Item                  | Valor esperado                                          |
+|-----------------------|---------------------------------------------------------|
+| Realm                 | `descontovivo`                                          |
+| Issuer                | `https://auth.descontovivo.com/realms/descontovivo`     |
+| Client API            | `descontovivo-api` (resource/API, sem fluxo de login)                        |
+| Client UI             | `descontovivo-ui` (public, PKCE)                        |
+| Algoritmo             | RS256                                                   |
+| Access token lifespan | 5 minutos                                               |
+| Roles                 | Via `realm_access.roles`                                |
+| Web Origins (UI)      | `https://descontovivo.com`                              |
+| Redirect URIs (UI)    | `https://descontovivo.com/*`                            |
+
+### Variáveis de ambiente — deploy
+
+```env
+# Banco
+QUARKUS_DATASOURCE_JDBC_URL=jdbc:postgresql://<host>:5432/descontovivo
+QUARKUS_DATASOURCE_USERNAME=<user>
+QUARKUS_DATASOURCE_PASSWORD=<password>
+
+# OIDC
+OIDC_AUTH_SERVER_URL=https://auth.descontovivo.com/realms/descontovivo
+OIDC_CLIENT_ID=descontovivo-api
+
+# CORS
+QUARKUS_HTTP_CORS_ORIGINS=https://descontovivo.com
+```
+
+### Domínios finais
+
+| Serviço   | URL                                |
+|-----------|------------------------------------|
+| Site/SPA  | `https://descontovivo.com`         |
+| API       | `https://api.descontovivo.com`     |
+| Auth      | `https://auth.descontovivo.com`    |

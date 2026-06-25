@@ -181,16 +181,27 @@ Authorization: Bearer <access_token>
 | `OIDC_CLIENT_ID`              | Client ID da API (`descontovivo-api`)  |
 | `QUARKUS_HTTP_CORS_ORIGINS`   | Origens CORS permitidas para o SPA     |
 
-**Angular (SPA):**
+**Angular (SPA) — Desenvolvimento:**
 
-| Configuração                  | Valor típico                            |
+| Configuração                  | Valor                                   |
 |-------------------------------|----------------------------------------|
 | issuer / auth server URL      | `http://localhost:8082/realms/descontovivo` |
 | client id                     | `descontovivo-ui` (public client)      |
-| redirect URI                  | `http://localhost:4200/callback`       |
+| redirect URI                  | `http://localhost:4200`                |
 | post logout redirect URI      | `http://localhost:4200`                |
 | scopes                        | `openid profile email`                 |
 | response type                 | `code` (Authorization Code + PKCE)     |
+
+**Angular (SPA) — Produção:**
+
+| Configuração                  | Valor                                              |
+|-------------------------------|----------------------------------------------------|
+| issuer / auth server URL      | `https://auth.descontovivo.com/realms/descontovivo`|
+| client id                     | `descontovivo-ui` (public client)                  |
+| redirect URI                  | `https://descontovivo.com`                |
+| post logout redirect URI      | `https://descontovivo.com`                         |
+| scopes                        | `openid profile email`                             |
+| response type                 | `code` (Authorization Code + PKCE)                 |
 
 ---
 
