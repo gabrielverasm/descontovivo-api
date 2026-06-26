@@ -8,6 +8,7 @@ import io.quarkus.panache.common.Sort;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -16,14 +17,15 @@ import java.util.UUID;
 public class PromotionRepository implements PanacheRepositoryBase<PromotionEntity, UUID> {
 
     public Optional<PromotionEntity> findPublishedBySlug(String slug) {
-        return find("slug = ?1 and status = ?2", slug, PromotionStatus.PUBLISHED).firstResultOptional();
+        return find("slug = ?1 and status = ?2 and publishAt <= ?3", slug, PromotionStatus.PUBLISHED, OffsetDateTime.now()).firstResultOptional();
     }
 
     public List<PromotionEntity> listPublished(int page, int size, String storeSlug, String availability, String query) {
-        var sb = new StringBuilder("status = ?1");
+        var sb = new StringBuilder("status = ?1 and publishAt <= ?2");
         var params = new java.util.ArrayList<Object>();
         params.add(PromotionStatus.PUBLISHED);
-        int idx = 2;
+        params.add(OffsetDateTime.now());
+        int idx = 3;
 
         if (storeSlug != null && !storeSlug.isBlank()) {
             sb.append(" and store.slug = ?").append(idx++);
@@ -45,10 +47,11 @@ public class PromotionRepository implements PanacheRepositoryBase<PromotionEntit
     }
 
     public long countPublished(String storeSlug, String availability, String query) {
-        var sb = new StringBuilder("status = ?1");
+        var sb = new StringBuilder("status = ?1 and publishAt <= ?2");
         var params = new java.util.ArrayList<Object>();
         params.add(PromotionStatus.PUBLISHED);
-        int idx = 2;
+        params.add(OffsetDateTime.now());
+        int idx = 3;
 
         if (storeSlug != null && !storeSlug.isBlank()) {
             sb.append(" and store.slug = ?").append(idx++);
@@ -76,5 +79,13 @@ public class PromotionRepository implements PanacheRepositoryBase<PromotionEntit
     public boolean existsDuplicate(String normalizedUrl, String normalizedDescription, LocalDate createdDate) {
         return count("normalizedUrl = ?1 and normalizedDescription = ?2 and createdDate = ?3",
                 normalizedUrl, normalizedDescription, createdDate) > 0;
+    }
+
+    public boolean existsBySourceId(String sourceId) {
+        return count("sourceId", sourceId) > 0;
+    }
+
+    public boolean existsByNormalizedUrl(String normalizedUrl) {
+        return count("normalizedUrl", normalizedUrl) > 0;
     }
 }

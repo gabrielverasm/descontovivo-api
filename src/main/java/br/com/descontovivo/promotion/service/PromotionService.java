@@ -93,6 +93,7 @@ public class PromotionService {
         entity.setCreatedDate(today);
         entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
+        entity.setPublishAt(now);
 
         promotionRepository.persist(entity);
         return PromotionDetailResponse.from(entity);

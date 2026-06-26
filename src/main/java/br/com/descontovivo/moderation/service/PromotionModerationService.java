@@ -56,6 +56,9 @@ public class PromotionModerationService {
             case APPROVE -> {
                 entity.setStatus(PromotionStatus.PUBLISHED);
                 entity.setPublishedAt(now);
+                if (entity.getPublishAt() == null || entity.getPublishAt().isAfter(now)) {
+                    entity.setPublishAt(now);
+                }
             }
             case REJECT -> {
                 entity.setStatus(PromotionStatus.REJECTED);

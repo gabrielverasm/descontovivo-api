@@ -76,6 +76,39 @@ public class PromotionEntity {
     @Column(name = "removed_at")
     private OffsetDateTime removedAt;
 
+    @Column(name = "publish_at", nullable = false)
+    private OffsetDateTime publishAt;
+
+    @Column(name = "verified_at")
+    private OffsetDateTime verifiedAt;
+
+    @Column(length = 50)
+    private String source;
+
+    @Column(name = "source_id", length = 200)
+    private String sourceId;
+
+    @Column(name = "batch_id", length = 200)
+    private String batchId;
+
+    @Column(name = "author_username", length = 100)
+    private String authorUsername;
+
+    @Column(length = 50)
+    private String marketplace;
+
+    @Column(name = "seller_name", length = 100)
+    private String sellerName;
+
+    @Column(name = "sold_by", length = 100)
+    private String soldBy;
+
+    @Column(name = "delivered_by", length = 100)
+    private String deliveredBy;
+
+    @Column(length = 50)
+    private String category;
+
     @Column(name = "likes_count", nullable = false)
     private int likesCount;
 
@@ -131,4 +164,26 @@ public class PromotionEntity {
     public void setDislikesCount(int dislikesCount) { this.dislikesCount = dislikesCount; }
     public int getCommentsCount() { return commentsCount; }
     public void setCommentsCount(int commentsCount) { this.commentsCount = commentsCount; }
+    public OffsetDateTime getPublishAt() { return publishAt; }
+    public void setPublishAt(OffsetDateTime publishAt) { this.publishAt = publishAt; }
+    public OffsetDateTime getVerifiedAt() { return verifiedAt; }
+    public void setVerifiedAt(OffsetDateTime verifiedAt) { this.verifiedAt = verifiedAt; }
+    public String getSource() { return source; }
+    public void setSource(String source) { this.source = source; }
+    public String getSourceId() { return sourceId; }
+    public void setSourceId(String sourceId) { this.sourceId = sourceId; }
+    public String getBatchId() { return batchId; }
+    public void setBatchId(String batchId) { this.batchId = batchId; }
+    public String getAuthorUsername() { return authorUsername; }
+    public void setAuthorUsername(String authorUsername) { this.authorUsername = authorUsername; }
+    public String getMarketplace() { return marketplace; }
+    public void setMarketplace(String marketplace) { this.marketplace = marketplace; }
+    public String getSellerName() { return sellerName; }
+    public void setSellerName(String sellerName) { this.sellerName = sellerName; }
+    public String getSoldBy() { return soldBy; }
+    public void setSoldBy(String soldBy) { this.soldBy = soldBy; }
+    public String getDeliveredBy() { return deliveredBy; }
+    public void setDeliveredBy(String deliveredBy) { this.deliveredBy = deliveredBy; }
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
 }
