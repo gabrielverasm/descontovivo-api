@@ -1,0 +1,41 @@
+{
+  "batchId": "initial-YYYY-MM-DD-001",
+  "items": [
+    {
+      "sourceId": "<marketplace>-<produto-slug>-<data>",
+      "title": "<Título do produto>",
+      "description": "<Descrição editorial. Mencionar vendedor, frete, prazo.>",
+      "marketplace": "<AMAZON|MAGALU|MERCADOLIVRE|KABUM|ALIEXPRESS>",
+      "storeName": "<Nome da Loja>",
+      "sellerName": "<Vendedor responsável>",
+      "soldBy": "<Vendido por>",
+      "deliveredBy": "<Entregue por>",
+      "productUrl": "<URL completa do produto>",
+      "imageUrl": "<URL da imagem do produto>",
+      "currentPrice": 0.01,
+      "originalPrice": null,
+      "coupon": null,
+      "category": "<ELETRONICOS|CASA|MODA|BELEZA|ESPORTE|ALIMENTOS|LIVROS|GAMES|OUTROS>",
+      "publishAt": "2026-06-26T21:30:00-03:00",
+      "verifiedAt": "2026-06-26T21:00:00-03:00"
+    },
+    {
+      "sourceId": "<marketplace>-<produto-slug>-<data>-2",
+      "title": "<Segundo produto>",
+      "description": "<Descrição do segundo item>",
+      "marketplace": "<MARKETPLACE>",
+      "storeName": "<Nome da Loja>",
+      "sellerName": null,
+      "soldBy": null,
+      "deliveredBy": null,
+      "productUrl": "<URL completa do segundo produto>",
+      "imageUrl": "<URL da imagem>",
+      "currentPrice": 0.01,
+      "originalPrice": 0.02,
+      "coupon": "<CUPOM10>",
+      "category": "<CATEGORIA>",
+      "publishAt": null,
+      "verifiedAt": null
+    }
+  ]
+}

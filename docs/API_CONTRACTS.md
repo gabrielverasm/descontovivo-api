@@ -108,6 +108,102 @@ Remove o voto do usuário autenticado.
 | PATCH  | /moderation/promotions/{id}          | Ação de moderação na promoção    |
 | PATCH  | /moderation/comments/{id}            | Ação de moderação no comentário  |
 
+---
+
+## Endpoints Admin (role `admin` ou header `X-Admin-Import-Token`)
+
+| Método | Endpoint                             | Descrição                        |
+|--------|--------------------------------------|----------------------------------|
+| POST   | /admin/promotions/import             | Importar promoções via JSON      |
+
+### POST /admin/promotions/import?dryRun=false
+
+Autorização: role `admin` via JWT **ou** header `X-Admin-Import-Token` com valor configurado em `ADMIN_IMPORT_TOKEN`.
+
+Query params:
+
+| Parâmetro | Tipo    | Default | Descrição                                    |
+|-----------|---------|---------|----------------------------------------------|
+| dryRun    | boolean | false   | Se true, valida sem gravar no banco          |
+
+Request body:
+
+```json
+{
+  "batchId": "initial-2026-06-26-001",
+  "items": [
+    {
+      "sourceId": "<identificador-unico>",
+      "title": "<titulo>",
+      "description": "<descricao>",
+      "marketplace": "<MARKETPLACE>",
+      "storeName": "<nome-loja>",
+      "sellerName": "<vendedor>",
+      "soldBy": "<vendido-por>",
+      "deliveredBy": "<entregue-por>",
+      "productUrl": "<url-produto>",
+      "imageUrl": "<url-imagem>",
+      "currentPrice": 0.01,
+      "originalPrice": null,
+      "coupon": null,
+      "category": "<CATEGORIA>",
+      "publishAt": "2026-06-26T21:30:00-03:00",
+      "verifiedAt": "2026-06-26T21:00:00-03:00"
+    }
+  ]
+}
+```
+
+Regras:
+
+- `batchId` opcional (gerado automaticamente se ausente)
+- `sourceId` obrigatório e único — chave de deduplicação
+- `publishAt` opcional — se ausente, usa timestamp do início da importação
+- Promoções com `publishAt` futuro ficam salvas mas invisíveis na listagem pública até a data/hora
+- Se `sourceId` já existir no banco, item é **pulado** (skipped)
+- Se `productUrl` normalizado já existir, item é **pulado**
+- Store é criada automaticamente se não existir
+
+Response:
+
+```json
+{
+  "batchId": "initial-2026-06-26-001",
+  "dryRun": false,
+  "created": 18,
+  "skipped": 2,
+  "errors": [
+    {
+      "sourceId": "<id-item>",
+      "field": "productUrl",
+      "message": "productUrl obrigatório"
+    }
+  ]
+}
+```
+
+Reversibilidade:
+
+```sql
+-- Verificar o que será removido
+SELECT id, title, source_id, batch_id FROM promotion
+WHERE source = 'ADMIN_JSON_IMPORT' AND batch_id = '<batchId>';
+
+-- Remover dependências (votos e comentários, se existirem)
+DELETE FROM promotion_vote WHERE promotion_id IN (
+    SELECT id FROM promotion WHERE source = 'ADMIN_JSON_IMPORT' AND batch_id = '<batchId>'
+);
+DELETE FROM promotion_comment WHERE promotion_id IN (
+    SELECT id FROM promotion WHERE source = 'ADMIN_JSON_IMPORT' AND batch_id = '<batchId>'
+);
+
+-- Remover promoções
+DELETE FROM promotion WHERE source = 'ADMIN_JSON_IMPORT' AND batch_id = '<batchId>';
+```
+
+Campos persistidos por item: `marketplace`, `sellerName`, `soldBy`, `deliveredBy`, `category`, `sourceId`, `batchId`, `source`, `authorUsername`, `publishAt`, `verifiedAt`.
+
+---
 ### PATCH /moderation/promotions/{id}
 
 Ações: `APPROVE`, `REJECT`, `REMOVE`, `EDIT`.
