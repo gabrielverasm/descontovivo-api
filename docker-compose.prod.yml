@@ -1,0 +1,19 @@
+services:
+  descontovivo-api:
+    image: ghcr.io/gabrielverasm/descontovivo-api:${IMAGE_TAG:-latest}
+    container_name: descontovivo-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      - descontovivo-public
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/q/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+networks:
+  descontovivo-public:
+    external: true

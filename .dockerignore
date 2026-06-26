@@ -1,4 +1,41 @@
-target/
+# Git
 .git/
+.github/
+
+# Environment
 .env
+.env.*
+
+# Build output (built inside Docker)
+target/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Backups and exports
+backups/
+*.tar.gz
+*.tgz
+*.zip
+*realm*.json
+*keycloak*.json
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose*.yml
+Dockerfile
+
+# Docs (not needed in image)
+docs/
 *.md
+
+# Scripts
+scripts/
