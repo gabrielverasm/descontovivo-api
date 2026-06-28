@@ -121,5 +121,8 @@ public class PromotionModerationService {
                     .orElseThrow(() -> new NotFoundException("Store not found: " + req.storeSlug()));
             entity.setStore(store);
         }
+        if (req.soldBy() != null) entity.setSoldBy(req.soldBy());
+        if (req.deliveredBy() != null) entity.setDeliveredBy(req.deliveredBy());
+        if (req.category() != null) entity.setCategory(req.category());
     }
 }
