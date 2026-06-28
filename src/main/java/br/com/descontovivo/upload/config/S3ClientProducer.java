@@ -42,7 +42,6 @@ public class S3ClientProducer {
                 .serviceConfiguration(S3Configuration.builder()
                         .pathStyleAccessEnabled(true)
                         .build())
-                .forcePathStyle(true)
                 .build();
     }
 }
