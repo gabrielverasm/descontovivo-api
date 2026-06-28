@@ -1,0 +1,1 @@
+ALTER TABLE promotion ADD COLUMN image_key VARCHAR(200);

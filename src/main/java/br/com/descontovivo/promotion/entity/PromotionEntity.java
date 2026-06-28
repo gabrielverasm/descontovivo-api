@@ -46,6 +46,9 @@ public class PromotionEntity {
     @Column(name = "image_url", nullable = false, columnDefinition = "TEXT")
     private String imageUrl;
 
+    @Column(name = "image_key", length = 200)
+    private String imageKey;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private PromotionStatus status;
@@ -140,6 +143,8 @@ public class PromotionEntity {
     public void setCouponCode(String couponCode) { this.couponCode = couponCode; }
     public String getImageUrl() { return imageUrl; }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
+    public String getImageKey() { return imageKey; }
+    public void setImageKey(String imageKey) { this.imageKey = imageKey; }
     public PromotionStatus getStatus() { return status; }
     public void setStatus(PromotionStatus status) { this.status = status; }
     public OfferAvailability getAvailability() { return availability; }

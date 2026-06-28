@@ -21,7 +21,7 @@ API principal consumida pelo frontend `descontovivo-ui`.
 ## Arquitetura
 
 - Monólito modular (hexagonal pragmático)
-- Módulos atuais: `promotion`, `engagement`, `store`, `moderation`, `account`, `shared`
+- Módulos atuais: `promotion`, `engagement`, `store`, `moderation`, `account`, `upload`, `shared`
 - Request/Response DTOs, Domain Value Objects, Entities JPA, Panache Repositories
 
 ## Desenvolvimento local
@@ -81,6 +81,11 @@ Cobertura inclui:
 | `OIDC_AUTH_SERVER_URL`              | URL do realm Keycloak              |
 | `OIDC_CLIENT_ID`                    | Client ID OIDC                     |
 | `QUARKUS_HTTP_CORS_ORIGINS`         | Origens CORS permitidas            |
+| `R2_ENDPOINT`                       | Endpoint S3-compatible do R2       |
+| `R2_ACCESS_KEY_ID`                  | Access key do R2                   |
+| `R2_SECRET_ACCESS_KEY`              | Secret key do R2                   |
+| `R2_BUCKET`                         | Nome do bucket (`descontovivo-promotions`) |
+| `R2_PUBLIC_BASE_URL`                | URL pública das imagens            |
 
 > **Override avançado:** também é possível usar `QUARKUS_OIDC_AUTH_SERVER_URL` e `QUARKUS_OIDC_CLIENT_ID` diretamente, que sobrescrevem qualquer valor do application.properties.
 
@@ -144,6 +149,14 @@ OIDC_CLIENT_ID=descontovivo-api
 
 # CORS
 QUARKUS_HTTP_CORS_ORIGINS=https://descontovivo.com
+
+# Cloudflare R2
+R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+R2_ACCESS_KEY_ID=<access-key>
+R2_SECRET_ACCESS_KEY=<secret-key>
+R2_BUCKET=descontovivo-promotions
+R2_PUBLIC_BASE_URL=https://img.descontovivo.com.br
+R2_REGION=auto
 ```
 
 ### Domínios finais
@@ -153,3 +166,4 @@ QUARKUS_HTTP_CORS_ORIGINS=https://descontovivo.com
 | Site/SPA  | `https://descontovivo.com`         |
 | API       | `https://api.descontovivo.com`     |
 | Auth      | `https://auth.descontovivo.com`    |
+| Imagens   | `https://img.descontovivo.com.br`  |
