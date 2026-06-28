@@ -32,9 +32,10 @@ class PromotionEngagementResourceTest {
                     "currentPrice": 100.00,
                     "originalPrice": 200.00,
                     "imageUrl": "https://images.example.com/eng.jpg",
+                    "imageKey": "temp/promotions/2026/06/eng-%s.webp",
                     "storeSlug": "amazon"
                 }
-            """.formatted(uid, uid, uid))
+            """.formatted(uid, uid, uid, uid))
             .when().post("/api/v1/promotions")
             .then().statusCode(201)
             .extract().jsonPath();

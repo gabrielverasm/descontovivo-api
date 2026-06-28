@@ -51,6 +51,7 @@ Resposta paginada:
 |--------|--------------------------------------|----------------------------------|
 | GET    | /account/me                          | Perfil do usuário logado         |
 | POST   | /promotions                          | Criar promoção                   |
+| POST   | /uploads/promotion-image/presign     | Gerar presigned URL para upload  |
 | PUT    | /promotions/{slug}/vote              | Votar na promoção                |
 | DELETE | /promotions/{slug}/vote              | Remover voto                     |
 | POST   | /promotions/{slug}/comments          | Comentar na promoção             |
@@ -85,6 +86,63 @@ Uso pelo Angular:
 - Mostrar/esconder botão "Publicar" (só se `emailVerified=true`).
 - Mostrar/esconder área de moderação (se roles contém `moderator` ou `admin`).
 - Bloquear ações locais quando `emailVerified=false`.
+
+### POST /promotions — Criar promoção
+
+Request mínimo:
+
+```json
+{
+  "title": "Produto em promoção",
+  "url": "https://www.amazon.com.br/dp/B0...",
+  "currentPrice": 99.90,
+  "imageUrl": "https://img.descontovivo.com.br/temp/promotions/2026/06/uuid.webp",
+  "imageKey": "temp/promotions/2026/06/uuid.webp"
+}
+```
+
+| Campo         | Obrigatório | Notas                                                         |
+|---------------|-------------|---------------------------------------------------------------|
+| title         | sim         | max 180 chars                                                 |
+| url           | sim         | max 2048 chars                                                |
+| currentPrice  | sim         | > 0                                                           |
+| imageUrl      | sim         | max 2048 chars                                                |
+| imageKey      | sim         | max 200 chars; chave do objeto no R2                          |
+| description   | não         | max 2000 chars; se omitido, usa title como fallback           |
+| originalPrice | não         | preço anterior (riscado)                                      |
+| couponCode    | não         | max 80 chars                                                  |
+| storeSlug     | não         | se omitido, infere pela URL ou usa "loja-nao-identificada"    |
+
+Resposta: `201` com `PromotionDetailResponse`. Status inicial: `PENDING_REVIEW`.
+
+### POST /uploads/promotion-image/presign — Gerar URL de upload
+
+Request:
+
+```json
+{
+  "contentType": "image/webp",
+  "fileSize": 1048576
+}
+```
+
+Resposta:
+
+```json
+{
+  "uploadUrl": "https://r2.cloudflarestorage.com/...",
+  "publicUrl": "https://img.descontovivo.com.br/temp/promotions/2026/06/uuid.webp",
+  "objectKey": "temp/promotions/2026/06/uuid.webp",
+  "expiresInSeconds": 300
+}
+```
+
+Fluxo Angular:
+1. Chamar presign → receber `uploadUrl`, `publicUrl`, `objectKey`
+2. Fazer PUT do arquivo .webp no `uploadUrl` com header `Content-Type: image/webp`
+3. Enviar `publicUrl` como `imageUrl` e `objectKey` como `imageKey` no POST /promotions
+
+> **Nota:** Imagens ficam em `temp/promotions/` até serem movidas por job futuro. Imagens não referenciadas com mais de 7 dias serão limpas automaticamente (TODO).
 
 ### PUT /promotions/{slug}/vote
 
