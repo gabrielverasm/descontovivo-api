@@ -24,6 +24,95 @@ class PromotionResourceTest {
     }
 
     @Test
+    @TestSecurity(user = "admin-url-test", roles = {"user", "moderator", "admin"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "admin-url-test-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "admin-url@test.local"),
+        @Claim(key = "preferred_username", value = "admin-url-test")
+    })
+    void shouldReturnUrlInPromotionList() {
+        var uid = UUID.randomUUID().toString().substring(0, 8);
+        var expectedUrl = "https://www.amazon.com.br/list-url-" + uid;
+
+        // Create and approve a promotion
+        var id = given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "title": "URL List Test %s",
+                    "url": "%s",
+                    "currentPrice": 49.90,
+                    "imageUrl": "https://images.example.com/url-list.jpg",
+                    "imageKey": "temp/promotions/2026/06/url-list-%s.webp",
+                    "storeSlug": "amazon"
+                }
+            """.formatted(uid, expectedUrl, uid))
+            .when().post("/api/v1/promotions")
+            .then().statusCode(201)
+            .extract().jsonPath().getString("id");
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("{\"action\": \"APPROVE\", \"reason\": \"ok\"}")
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then().statusCode(200);
+
+        // Verify url in list
+        given()
+            .when().get("/api/v1/promotions")
+            .then()
+            .statusCode(200)
+            .body("content.url", hasItem(expectedUrl));
+    }
+
+    @Test
+    @TestSecurity(user = "admin-url-detail", roles = {"user", "moderator", "admin"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "admin-url-detail-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "admin-url-detail@test.local"),
+        @Claim(key = "preferred_username", value = "admin-url-detail")
+    })
+    void shouldReturnUrlInPromotionDetail() {
+        var uid = UUID.randomUUID().toString().substring(0, 8);
+        var expectedUrl = "https://www.amazon.com.br/detail-url-" + uid;
+
+        // Create and approve
+        var response = given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "title": "URL Detail Test %s",
+                    "url": "%s",
+                    "currentPrice": 79.90,
+                    "imageUrl": "https://images.example.com/url-detail.jpg",
+                    "imageKey": "temp/promotions/2026/06/url-detail-%s.webp",
+                    "storeSlug": "amazon"
+                }
+            """.formatted(uid, expectedUrl, uid))
+            .when().post("/api/v1/promotions")
+            .then().statusCode(201)
+            .extract().jsonPath();
+
+        var id = response.getString("id");
+        var slug = response.getString("slug");
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("{\"action\": \"APPROVE\", \"reason\": \"ok\"}")
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then().statusCode(200);
+
+        // Verify url in detail
+        given()
+            .when().get("/api/v1/promotions/" + slug)
+            .then()
+            .statusCode(200)
+            .body("url", is(expectedUrl));
+    }
+
+    @Test
     void shouldReturn401WhenCreatingWithoutAuth() {
         given()
             .contentType(ContentType.JSON)
