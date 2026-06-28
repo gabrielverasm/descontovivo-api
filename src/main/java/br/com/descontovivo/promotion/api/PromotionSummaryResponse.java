@@ -10,6 +10,7 @@ public record PromotionSummaryResponse(
         UUID id,
         String slug,
         String title,
+        String url,
         String description,
         BigDecimal currentPrice,
         BigDecimal originalPrice,
@@ -30,7 +31,7 @@ public record PromotionSummaryResponse(
 
     public static PromotionSummaryResponse from(PromotionEntity e) {
         return new PromotionSummaryResponse(
-                e.getId(), e.getSlug(), e.getTitle(), e.getDescription(),
+                e.getId(), e.getSlug(), e.getTitle(), e.getUrl(), e.getDescription(),
                 e.getCurrentPrice(), e.getOriginalPrice(), e.getCouponCode(),
                 e.getImageUrl(), e.getAvailability().name(),
                 new StoreRef(e.getStore().getSlug(), e.getStore().getName()),
