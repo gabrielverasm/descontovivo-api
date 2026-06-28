@@ -12,7 +12,6 @@ import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
-
 @QuarkusTest
 class PromotionResourceTest {
 
@@ -95,7 +94,9 @@ class PromotionResourceTest {
             .body("status", is("PENDING_REVIEW"))
             .body("slug", notNullValue())
             .body("id", notNullValue())
-            .body("store.slug", is("amazon"));
+            .body("store.slug", is("amazon"))
+            .body("imageUrl", startsWith("https://img.descontovivo.com.br/promotions/"))
+            .body("imageUrl", not(containsString("temp/promotions")));
     }
 
     @Test
@@ -321,5 +322,53 @@ class PromotionResourceTest {
             """)
             .when().post("/api/v1/promotions")
             .then().statusCode(400);
+    }
+
+    @Test
+    @TestSecurity(user = "user-verified", roles = "user")
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "user-verified-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "user@test.local"),
+        @Claim(key = "preferred_username", value = "user-verified")
+    })
+    void shouldReturn422WhenImageKeyNotInTempPrefix() {
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "title": "Invalid Key",
+                    "url": "https://www.amazon.com.br/invalid-key",
+                    "currentPrice": 10.00,
+                    "imageUrl": "https://img.descontovivo.com.br/promotions/2026/06/a.webp",
+                    "imageKey": "promotions/2026/06/a.webp"
+                }
+            """)
+            .when().post("/api/v1/promotions")
+            .then().statusCode(422);
+    }
+
+    @Test
+    @TestSecurity(user = "user-verified", roles = "user")
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "user-verified-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "user@test.local"),
+        @Claim(key = "preferred_username", value = "user-verified")
+    })
+    void shouldReturn422WhenImageKeyHasArbitraryPrefix() {
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "title": "Arbitrary Key",
+                    "url": "https://www.amazon.com.br/arbitrary-key",
+                    "currentPrice": 10.00,
+                    "imageUrl": "https://img.descontovivo.com.br/abc/a.webp",
+                    "imageKey": "abc/a.webp"
+                }
+            """)
+            .when().post("/api/v1/promotions")
+            .then().statusCode(422);
     }
 }

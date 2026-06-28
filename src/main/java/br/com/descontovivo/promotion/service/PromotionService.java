@@ -13,6 +13,7 @@ import br.com.descontovivo.shared.api.ConflictException;
 import br.com.descontovivo.shared.security.CurrentUserProvider;
 import br.com.descontovivo.store.entity.StoreEntity;
 import br.com.descontovivo.store.repository.StoreRepository;
+import br.com.descontovivo.upload.service.R2StorageService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.NotFoundException;
@@ -40,13 +41,16 @@ public class PromotionService {
     private final PromotionRepository promotionRepository;
     private final StoreRepository storeRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final R2StorageService r2StorageService;
 
     public PromotionService(PromotionRepository promotionRepository,
                             StoreRepository storeRepository,
-                            CurrentUserProvider currentUserProvider) {
+                            CurrentUserProvider currentUserProvider,
+                            R2StorageService r2StorageService) {
         this.promotionRepository = promotionRepository;
         this.storeRepository = storeRepository;
         this.currentUserProvider = currentUserProvider;
+        this.r2StorageService = r2StorageService;
     }
 
     @Transactional
@@ -98,8 +102,9 @@ public class PromotionService {
         entity.setCurrentPrice(request.currentPrice());
         entity.setOriginalPrice(request.originalPrice());
         entity.setCouponCode(request.couponCode());
-        entity.setImageUrl(request.imageUrl());
-        entity.setImageKey(request.imageKey());
+        String finalImageKey = r2StorageService.promoteImage(request.imageKey());
+        entity.setImageKey(finalImageKey);
+        entity.setImageUrl(r2StorageService.buildPublicUrl(finalImageKey));
         entity.setStatus(PromotionStatus.PENDING_REVIEW);
         entity.setAvailability(OfferAvailability.AVAILABLE);
         entity.setStore(store);
