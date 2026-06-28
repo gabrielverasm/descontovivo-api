@@ -1,20 +1,33 @@
 package br.com.descontovivo.moderation.api;
 
+import br.com.descontovivo.upload.mock.MockR2StorageService;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.security.TestSecurity;
 import io.quarkus.test.security.oidc.Claim;
 import io.quarkus.test.security.oidc.ClaimType;
 import io.quarkus.test.security.oidc.OidcSecurity;
 import io.restassured.http.ContentType;
+import jakarta.inject.Inject;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 @QuarkusTest
 class ModerationResourceTest {
+
+    @Inject
+    MockR2StorageService mockR2;
+
+    @BeforeEach
+    void setUp() {
+        mockR2.clearDeletedKeys();
+        mockR2.setShouldFailOnDelete(false);
+    }
 
     @Test
     void shouldReturn401WithoutAuth() {
@@ -90,6 +103,169 @@ class ModerationResourceTest {
             .then()
             .statusCode(200)
             .body("status", is("PUBLISHED"));
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldDeleteR2ImageOnReject() {
+        var id = createPromotion();
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                { "action": "REJECT", "reason": "Spam" }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(200)
+            .body("status", is("REJECTED"));
+
+        assertFalse(mockR2.getDeletedKeys().isEmpty(), "Should have deleted image from R2");
+        assertTrue(mockR2.getDeletedKeys().get(0).startsWith("promotions/"));
+    }
+
+    @Test
+    @TestSecurity(user = "admin-user", roles = {"user", "moderator", "admin"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "admin-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "admin-user")
+    })
+    void shouldDeleteR2ImageOnRemove() {
+        var id = createPromotion();
+
+        // First approve
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                { "action": "APPROVE", "reason": "Valid" }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then().statusCode(200);
+
+        mockR2.clearDeletedKeys();
+
+        // Then remove
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                { "action": "REMOVE", "reason": "Expired offer" }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(200)
+            .body("status", is("REMOVED"));
+
+        assertFalse(mockR2.getDeletedKeys().isEmpty(), "Should have deleted image from R2");
+        assertTrue(mockR2.getDeletedKeys().get(0).startsWith("promotions/"));
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldReturn403WhenModeratorTriesToRemove() {
+        var id = createPromotion();
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                { "action": "REMOVE", "reason": "Tentativa de remover como moderator" }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(403);
+
+        assertTrue(mockR2.getDeletedKeys().isEmpty(), "R2 delete should NOT be called on 403");
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldNotDeleteR2ImageOnApprove() {
+        var id = createPromotion();
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                { "action": "APPROVE", "reason": "Good deal" }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then().statusCode(200);
+
+        assertTrue(mockR2.getDeletedKeys().isEmpty(), "Should NOT delete image on APPROVE");
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldNotDeleteR2ImageOnEdit() {
+        var id = createPromotion();
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                { "action": "EDIT", "reason": "Fix title", "title": "Fixed Title" }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then().statusCode(200);
+
+        assertTrue(mockR2.getDeletedKeys().isEmpty(), "Should NOT delete image on EDIT");
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldNotFailWhenImageKeyIsNullOrBlank() {
+        // Directly verify the service handles null/blank without error
+        mockR2.deletePromotionImageIfPresent(null);
+        mockR2.deletePromotionImageIfPresent("");
+        mockR2.deletePromotionImageIfPresent("   ");
+        assertTrue(mockR2.getDeletedKeys().isEmpty(), "Should not attempt delete with null/blank imageKey");
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldNotBlockRejectionWhenR2DeleteFails() {
+        var id = createPromotion();
+        mockR2.setShouldFailOnDelete(true);
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                { "action": "REJECT", "reason": "Spam" }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(200)
+            .body("status", is("REJECTED"));
+
+        assertTrue(mockR2.getDeletedKeys().isEmpty(), "Delete should have been attempted but failed silently");
     }
 
     private String createPromotion() {

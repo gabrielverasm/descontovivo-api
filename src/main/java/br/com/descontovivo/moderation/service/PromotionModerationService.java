@@ -11,8 +11,11 @@ import br.com.descontovivo.promotion.repository.PromotionRepository;
 import br.com.descontovivo.promotion.support.PromotionNormalizer;
 import br.com.descontovivo.shared.security.CurrentUserProvider;
 import br.com.descontovivo.store.repository.StoreRepository;
+import br.com.descontovivo.upload.service.R2StorageService;
+import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.NotFoundException;
 
 import java.time.OffsetDateTime;
@@ -26,15 +29,21 @@ public class PromotionModerationService {
     private final ModerationLogRepository moderationLogRepository;
     private final StoreRepository storeRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final R2StorageService r2StorageService;
+    private final SecurityIdentity securityIdentity;
 
     public PromotionModerationService(PromotionRepository promotionRepository,
                                       ModerationLogRepository moderationLogRepository,
                                       StoreRepository storeRepository,
-                                      CurrentUserProvider currentUserProvider) {
+                                      CurrentUserProvider currentUserProvider,
+                                      R2StorageService r2StorageService,
+                                      SecurityIdentity securityIdentity) {
         this.promotionRepository = promotionRepository;
         this.moderationLogRepository = moderationLogRepository;
         this.storeRepository = storeRepository;
         this.currentUserProvider = currentUserProvider;
+        this.r2StorageService = r2StorageService;
+        this.securityIdentity = securityIdentity;
     }
 
     @Transactional
@@ -45,6 +54,11 @@ public class PromotionModerationService {
 
     @Transactional
     public PromotionDetailResponse moderate(UUID id, ModerationActionRequest request) {
+        if (request.action() == ModerationActionRequest.ModerationAction.REMOVE
+                && !securityIdentity.hasRole("admin")) {
+            throw new ForbiddenException("Only admin can remove promotions");
+        }
+
         var user = currentUserProvider.currentUser();
 
         var entity = promotionRepository.findById(id);
@@ -63,10 +77,12 @@ public class PromotionModerationService {
             case REJECT -> {
                 entity.setStatus(PromotionStatus.REJECTED);
                 entity.setRejectedAt(now);
+                r2StorageService.deletePromotionImageIfPresent(entity.getImageKey());
             }
             case REMOVE -> {
                 entity.setStatus(PromotionStatus.REMOVED);
                 entity.setRemovedAt(now);
+                r2StorageService.deletePromotionImageIfPresent(entity.getImageKey());
             }
             case EDIT -> applyEdits(entity, request);
         }

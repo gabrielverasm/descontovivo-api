@@ -42,6 +42,15 @@ public class R2StorageService {
         return r2Config.publicBaseUrl() + "/" + key;
     }
 
+    public void deletePromotionImageIfPresent(String imageKey) {
+        if (imageKey == null || imageKey.isBlank()) return;
+        try {
+            deleteObject(imageKey);
+        } catch (Exception e) {
+            LOG.warnf(e, "Failed to delete image '%s' from R2. Manual cleanup may be needed.", imageKey);
+        }
+    }
+
     public void validateTempKey(String imageKey) {
         if (imageKey == null || !imageKey.startsWith(TEMP_PREFIX)) {
             throw new IllegalArgumentException("imageKey must start with '" + TEMP_PREFIX + "'");
@@ -57,7 +66,7 @@ public class R2StorageService {
                 .build());
     }
 
-    private void deleteObject(String key) {
+    void deleteObject(String key) {
         s3Client.deleteObject(DeleteObjectRequest.builder()
                 .bucket(r2Config.bucket())
                 .key(key)
