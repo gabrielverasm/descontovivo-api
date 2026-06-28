@@ -66,7 +66,7 @@ public class PresignService {
 
     private String buildObjectKey() {
         String prefix = LocalDate.now().format(YEAR_MONTH);
-        return "promotions/" + prefix + "/" + UUID.randomUUID() + ".webp";
+        return "temp/promotions/" + prefix + "/" + UUID.randomUUID() + ".webp";
     }
 
     private void validateContentType(String contentType) {

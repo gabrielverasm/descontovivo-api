@@ -11,20 +11,31 @@ import br.com.descontovivo.promotion.support.PromotionNormalizer;
 import br.com.descontovivo.promotion.support.SlugGenerator;
 import br.com.descontovivo.shared.api.ConflictException;
 import br.com.descontovivo.shared.security.CurrentUserProvider;
+import br.com.descontovivo.store.entity.StoreEntity;
 import br.com.descontovivo.store.repository.StoreRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.NotFoundException;
 
+import java.net.URI;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @ApplicationScoped
 public class PromotionService {
 
     private static final ZoneId SAO_PAULO = ZoneId.of("America/Sao_Paulo");
+    private static final String FALLBACK_STORE_SLUG = "loja-nao-identificada";
+
+    private static final Map<String, String> DOMAIN_TO_STORE_SLUG = Map.of(
+            "amazon.com.br", "amazon",
+            "mercadolivre.com.br", "mercado-livre",
+            "magazineluiza.com.br", "magalu"
+    );
 
     private final PromotionRepository promotionRepository;
     private final StoreRepository storeRepository;
@@ -59,15 +70,16 @@ public class PromotionService {
     public PromotionDetailResponse create(PromotionCreateRequest request) {
         var user = currentUserProvider.requireVerifiedUser();
 
-        var store = storeRepository.findBySlug(request.storeSlug())
-                .orElseThrow(() -> new NotFoundException("Store not found: " + request.storeSlug()));
+        StoreEntity store = resolveStore(request.storeSlug(), request.url());
+
+        String description = (request.description() != null && !request.description().isBlank())
+                ? request.description() : request.title();
 
         String normalizedUrl = PromotionNormalizer.normalizeUrl(request.url());
-        String normalizedDescription = PromotionNormalizer.normalizeDescription(request.description());
         LocalDate today = LocalDate.now(SAO_PAULO);
 
-        if (promotionRepository.existsDuplicate(normalizedUrl, normalizedDescription, today)) {
-            throw new ConflictException("Duplicate promotion: same URL and description already posted today");
+        if (promotionRepository.existsDuplicateByUrl(normalizedUrl, today)) {
+            throw new ConflictException("Duplicate promotion: same URL already posted today");
         }
 
         String slug = SlugGenerator.fromTitle(request.title());
@@ -81,12 +93,13 @@ public class PromotionService {
         entity.setTitle(request.title());
         entity.setUrl(request.url());
         entity.setNormalizedUrl(normalizedUrl);
-        entity.setDescription(request.description());
-        entity.setNormalizedDescription(normalizedDescription);
+        entity.setDescription(description);
+        entity.setNormalizedDescription(PromotionNormalizer.normalizeDescription(description));
         entity.setCurrentPrice(request.currentPrice());
         entity.setOriginalPrice(request.originalPrice());
         entity.setCouponCode(request.couponCode());
         entity.setImageUrl(request.imageUrl());
+        entity.setImageKey(request.imageKey());
         entity.setStatus(PromotionStatus.PENDING_REVIEW);
         entity.setAvailability(OfferAvailability.AVAILABLE);
         entity.setStore(store);
@@ -97,5 +110,34 @@ public class PromotionService {
 
         promotionRepository.persist(entity);
         return PromotionDetailResponse.from(entity);
+    }
+
+    private StoreEntity resolveStore(String storeSlug, String url) {
+        if (storeSlug != null && !storeSlug.isBlank()) {
+            return storeRepository.findBySlug(storeSlug)
+                    .orElseThrow(() -> new NotFoundException("Store not found: " + storeSlug));
+        }
+
+        Optional<StoreEntity> inferred = inferStoreFromUrl(url);
+        if (inferred.isPresent()) {
+            return inferred.get();
+        }
+
+        return storeRepository.findBySlug(FALLBACK_STORE_SLUG)
+                .orElseThrow(() -> new IllegalStateException("Fallback store not found"));
+    }
+
+    private Optional<StoreEntity> inferStoreFromUrl(String url) {
+        try {
+            String host = URI.create(url).getHost();
+            if (host == null) return Optional.empty();
+            host = host.toLowerCase().replaceFirst("^www\\.", "");
+            String slug = DOMAIN_TO_STORE_SLUG.get(host);
+            if (slug != null) {
+                return storeRepository.findBySlug(slug);
+            }
+        } catch (Exception ignored) {
+        }
+        return Optional.empty();
     }
 }

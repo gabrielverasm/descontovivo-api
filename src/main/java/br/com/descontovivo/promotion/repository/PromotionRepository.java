@@ -81,6 +81,10 @@ public class PromotionRepository implements PanacheRepositoryBase<PromotionEntit
                 normalizedUrl, normalizedDescription, createdDate) > 0;
     }
 
+    public boolean existsDuplicateByUrl(String normalizedUrl, LocalDate createdDate) {
+        return count("normalizedUrl = ?1 and createdDate = ?2", normalizedUrl, createdDate) > 0;
+    }
+
     public boolean existsBySourceId(String sourceId) {
         return count("sourceId", sourceId) > 0;
     }

@@ -32,10 +32,9 @@ class PromotionResourceTest {
                 {
                     "title": "Test",
                     "url": "https://example.com/test",
-                    "description": "Test desc",
                     "currentPrice": 10.00,
                     "imageUrl": "https://images.example.com/test.jpg",
-                    "storeSlug": "amazon"
+                    "imageKey": "temp/promotions/2026/06/test.webp"
                 }
             """)
             .when().post("/api/v1/promotions")
@@ -58,10 +57,9 @@ class PromotionResourceTest {
                 {
                     "title": "Unverified Test",
                     "url": "https://example.com/unverified",
-                    "description": "Unverified user test",
                     "currentPrice": 10.00,
                     "imageUrl": "https://images.example.com/test.jpg",
-                    "storeSlug": "amazon"
+                    "imageKey": "temp/promotions/2026/06/unverified.webp"
                 }
             """)
             .when().post("/api/v1/promotions")
@@ -77,27 +75,27 @@ class PromotionResourceTest {
         @Claim(key = "email", value = "user@test.local"),
         @Claim(key = "preferred_username", value = "user-verified")
     })
-    void shouldCreatePromotionWhenAuthenticated() {
+    void shouldCreatePromotionWithMinimalRequest() {
         var uid = UUID.randomUUID().toString().substring(0, 8);
         given()
             .contentType(ContentType.JSON)
             .body("""
                 {
-                    "title": "Auth Test %s",
-                    "url": "https://www.amazon.com.br/auth-%s",
-                    "description": "Auth test %s",
-                    "currentPrice": 199.00,
-                    "originalPrice": 399.00,
-                    "imageUrl": "https://images.example.com/auth.jpg",
-                    "storeSlug": "amazon"
+                    "title": "Produto Mínimo %s",
+                    "url": "https://www.amazon.com.br/minimal-%s",
+                    "currentPrice": 99.90,
+                    "imageUrl": "https://img.descontovivo.com.br/temp/promotions/2026/06/%s.webp",
+                    "imageKey": "temp/promotions/2026/06/%s.webp"
                 }
-            """.formatted(uid, uid, uid))
+            """.formatted(uid, uid, uid, uid))
+
             .when().post("/api/v1/promotions")
             .then()
             .statusCode(201)
             .body("status", is("PENDING_REVIEW"))
             .body("slug", notNullValue())
-            .body("id", notNullValue());
+            .body("id", notNullValue())
+            .body("store.slug", is("amazon"));
     }
 
     @Test
@@ -108,15 +106,73 @@ class PromotionResourceTest {
         @Claim(key = "email", value = "user@test.local"),
         @Claim(key = "preferred_username", value = "user-verified")
     })
-    void shouldReturn409OnDuplicateSameDay() {
+    void shouldCreatePromotionWithStoreSlug() {
+        var uid = UUID.randomUUID().toString().substring(0, 8);
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "title": "Auth Test %s",
+                    "url": "https://www.example.com/auth-%s",
+                    "description": "Auth test %s",
+                    "currentPrice": 199.00,
+                    "originalPrice": 399.00,
+                    "imageUrl": "https://images.example.com/auth.jpg",
+                    "imageKey": "temp/promotions/2026/06/auth-%s.webp",
+                    "storeSlug": "magalu"
+                }
+            """.formatted(uid, uid, uid, uid))
+            .when().post("/api/v1/promotions")
+            .then()
+            .statusCode(201)
+            .body("status", is("PENDING_REVIEW"))
+            .body("store.slug", is("magalu"));
+    }
+
+    @Test
+    @TestSecurity(user = "user-verified", roles = "user")
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "user-verified-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "user@test.local"),
+        @Claim(key = "preferred_username", value = "user-verified")
+    })
+    void shouldUseFallbackStoreWhenSlugOmittedAndUrlUnrecognized() {
+        var uid = UUID.randomUUID().toString().substring(0, 8);
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "title": "Unknown Store %s",
+                    "url": "https://www.lojadesconhecida.com.br/item-%s",
+                    "currentPrice": 50.00,
+                    "imageUrl": "https://images.example.com/unknown.jpg",
+                    "imageKey": "temp/promotions/2026/06/unknown-%s.webp"
+                }
+            """.formatted(uid, uid, uid))
+            .when().post("/api/v1/promotions")
+            .then()
+            .statusCode(201)
+            .body("store.slug", is("loja-nao-identificada"));
+    }
+
+    @Test
+    @TestSecurity(user = "user-verified", roles = "user")
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "user-verified-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "user@test.local"),
+        @Claim(key = "preferred_username", value = "user-verified")
+    })
+    void shouldReturn409OnDuplicateUrlSameDay() {
         var uid = UUID.randomUUID().toString().substring(0, 8);
         var body = """
             {
                 "title": "Dup %s",
                 "url": "https://www.magalu.com.br/dup-%s",
-                "description": "Dup desc %s",
                 "currentPrice": 100.00,
                 "imageUrl": "https://images.example.com/dup.jpg",
+                "imageKey": "temp/promotions/2026/06/dup-%s.webp",
                 "storeSlug": "magalu"
             }
         """.formatted(uid, uid, uid);
@@ -145,13 +201,125 @@ class PromotionResourceTest {
                 {
                     "title": "Fake Store",
                     "url": "https://www.fake.com.br/item",
-                    "description": "Non-existent store",
                     "currentPrice": 10.00,
                     "imageUrl": "https://images.example.com/fake.jpg",
+                    "imageKey": "temp/promotions/2026/06/fake.webp",
                     "storeSlug": "loja-fantasma"
                 }
             """)
             .when().post("/api/v1/promotions")
             .then().statusCode(404);
+    }
+
+    @Test
+    @TestSecurity(user = "user-verified", roles = "user")
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "user-verified-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "user@test.local"),
+        @Claim(key = "preferred_username", value = "user-verified")
+    })
+    void shouldReturn400WhenTitleMissing() {
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "url": "https://www.amazon.com.br/item",
+                    "currentPrice": 10.00,
+                    "imageUrl": "https://images.example.com/img.jpg"
+                }
+            """)
+            .when().post("/api/v1/promotions")
+            .then().statusCode(400);
+    }
+
+    @Test
+    @TestSecurity(user = "user-verified", roles = "user")
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "user-verified-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "user@test.local"),
+        @Claim(key = "preferred_username", value = "user-verified")
+    })
+    void shouldReturn400WhenUrlMissing() {
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "title": "No URL",
+                    "currentPrice": 10.00,
+                    "imageUrl": "https://images.example.com/img.jpg"
+                }
+            """)
+            .when().post("/api/v1/promotions")
+            .then().statusCode(400);
+    }
+
+    @Test
+    @TestSecurity(user = "user-verified", roles = "user")
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "user-verified-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "user@test.local"),
+        @Claim(key = "preferred_username", value = "user-verified")
+    })
+    void shouldReturn400WhenCurrentPriceMissing() {
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "title": "No Price",
+                    "url": "https://www.amazon.com.br/item",
+                    "imageUrl": "https://images.example.com/img.jpg"
+                }
+            """)
+            .when().post("/api/v1/promotions")
+            .then().statusCode(400);
+    }
+
+    @Test
+    @TestSecurity(user = "user-verified", roles = "user")
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "user-verified-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "user@test.local"),
+        @Claim(key = "preferred_username", value = "user-verified")
+    })
+    void shouldReturn400WhenImageUrlMissing() {
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "title": "No Image",
+                    "url": "https://www.amazon.com.br/item",
+                    "currentPrice": 10.00,
+                    "imageKey": "temp/promotions/2026/06/noimg.webp"
+                }
+            """)
+            .when().post("/api/v1/promotions")
+            .then().statusCode(400);
+    }
+
+    @Test
+    @TestSecurity(user = "user-verified", roles = "user")
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "user-verified-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "user@test.local"),
+        @Claim(key = "preferred_username", value = "user-verified")
+    })
+    void shouldReturn400WhenImageKeyMissing() {
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "title": "No Key",
+                    "url": "https://www.amazon.com.br/item",
+                    "currentPrice": 10.00,
+                    "imageUrl": "https://images.example.com/img.jpg"
+                }
+            """)
+            .when().post("/api/v1/promotions")
+            .then().statusCode(400);
     }
 }
