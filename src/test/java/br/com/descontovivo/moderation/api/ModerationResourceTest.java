@@ -268,6 +268,101 @@ class ModerationResourceTest {
         assertTrue(mockR2.getDeletedKeys().isEmpty(), "Delete should have been attempted but failed silently");
     }
 
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldEditCurationFieldsViaPatch() {
+        var id = createPromotion();
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "action": "EDIT",
+                    "reason": "Ajuste de curadoria",
+                    "soldBy": "Loja XPTO",
+                    "deliveredBy": "Amazon",
+                    "category": "Eletrônicos",
+                    "availability": "AVAILABLE"
+                }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(200)
+            .body("soldBy", is("Loja XPTO"))
+            .body("deliveredBy", is("Amazon"))
+            .body("category", is("Eletrônicos"))
+            .body("availability", is("AVAILABLE"));
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldReturnCurationFieldsOnGetModeration() {
+        var id = createPromotion();
+
+        // Set curation fields
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "action": "EDIT",
+                    "reason": "Curadoria",
+                    "soldBy": "Seller ABC",
+                    "deliveredBy": "Correios",
+                    "category": "Casa"
+                }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then().statusCode(200);
+
+        // Verify GET returns the fields
+        given()
+            .queryParam("status", "PENDING_REVIEW")
+            .when().get("/api/v1/moderation/promotions")
+            .then()
+            .statusCode(200)
+            .body("find { it.id == '%s' }.soldBy".formatted(id), is("Seller ABC"))
+            .body("find { it.id == '%s' }.deliveredBy".formatted(id), is("Correios"))
+            .body("find { it.id == '%s' }.category".formatted(id), is("Casa"))
+            .body("find { it.id == '%s' }.url".formatted(id), notNullValue());
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldNotExposeInternalFieldsInModerationResponse() {
+        var id = createPromotion();
+
+        var body = given()
+            .contentType(ContentType.JSON)
+            .body("""
+                { "action": "APPROVE", "reason": "OK" }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(200)
+            .extract().body().asString();
+
+        assertFalse(body.contains("marketplace"), "Should not expose marketplace");
+        assertFalse(body.contains("sellerName"), "Should not expose sellerName");
+        assertFalse(body.contains("imageKey"), "Should not expose imageKey");
+        assertFalse(body.contains("normalizedUrl"), "Should not expose normalizedUrl");
+        assertFalse(body.contains("normalizedDescription"), "Should not expose normalizedDescription");
+    }
+
     private String createPromotion() {
         var uid = UUID.randomUUID().toString().substring(0, 8);
         return given()

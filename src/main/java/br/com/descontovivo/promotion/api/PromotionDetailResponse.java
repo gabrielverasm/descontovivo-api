@@ -19,6 +19,9 @@ public record PromotionDetailResponse(
         String status,
         String availability,
         PromotionSummaryResponse.StoreRef store,
+        String soldBy,
+        String deliveredBy,
+        String category,
         int likesCount,
         int dislikesCount,
         int commentsCount,
@@ -31,6 +34,7 @@ public record PromotionDetailResponse(
                 e.getCurrentPrice(), e.getOriginalPrice(), e.getCouponCode(),
                 e.getImageUrl(), e.getStatus().name(), e.getAvailability().name(),
                 new PromotionSummaryResponse.StoreRef(e.getStore().getSlug(), e.getStore().getName()),
+                e.getSoldBy(), e.getDeliveredBy(), e.getCategory(),
                 e.getLikesCount(), e.getDislikesCount(), e.getCommentsCount(),
                 e.getCreatedAt(), e.getPublishedAt()
         );

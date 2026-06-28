@@ -17,7 +17,10 @@ public record ModerationActionRequest(
         @Size(max = 80) String couponCode,
         @Size(max = 2048) String imageUrl,
         @Size(max = 30) String availability,
-        @Size(max = 120) String storeSlug
+        @Size(max = 120) String storeSlug,
+        @Size(max = 100) String soldBy,
+        @Size(max = 100) String deliveredBy,
+        @Size(max = 50) String category
 ) {
     public enum ModerationAction {
         APPROVE, REJECT, REMOVE, EDIT
