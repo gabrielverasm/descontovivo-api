@@ -41,7 +41,7 @@ public class PromotionRepository implements PanacheRepositoryBase<PromotionEntit
             idx++;
         }
 
-        return find(sb.toString(), Sort.by("createdAt").descending(), params.toArray())
+        return find(sb.toString(), Sort.by("publishAt").descending(), params.toArray())
                 .page(Page.of(page, size))
                 .list();
     }
