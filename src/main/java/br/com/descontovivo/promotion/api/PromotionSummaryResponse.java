@@ -25,7 +25,8 @@ public record PromotionSummaryResponse(
         int dislikesCount,
         int commentsCount,
         OffsetDateTime createdAt,
-        OffsetDateTime publishedAt
+        OffsetDateTime publishedAt,
+        String authorUsername
 ) {
     public record StoreRef(String slug, String name) {}
 
@@ -37,7 +38,8 @@ public record PromotionSummaryResponse(
                 new StoreRef(e.getStore().getSlug(), e.getStore().getName()),
                 e.getSoldBy(), e.getDeliveredBy(), e.getCategory(),
                 e.getLikesCount(), e.getDislikesCount(), e.getCommentsCount(),
-                e.getCreatedAt(), e.getPublishedAt()
+                e.getCreatedAt(), e.getPublishedAt(),
+                e.getAuthorUsername()
         );
     }
 }

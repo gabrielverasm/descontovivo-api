@@ -26,7 +26,8 @@ public record PromotionDetailResponse(
         int dislikesCount,
         int commentsCount,
         OffsetDateTime createdAt,
-        OffsetDateTime publishedAt
+        OffsetDateTime publishedAt,
+        String authorUsername
 ) {
     public static PromotionDetailResponse from(PromotionEntity e) {
         return new PromotionDetailResponse(
@@ -36,7 +37,8 @@ public record PromotionDetailResponse(
                 new PromotionSummaryResponse.StoreRef(e.getStore().getSlug(), e.getStore().getName()),
                 e.getSoldBy(), e.getDeliveredBy(), e.getCategory(),
                 e.getLikesCount(), e.getDislikesCount(), e.getCommentsCount(),
-                e.getCreatedAt(), e.getPublishedAt()
+                e.getCreatedAt(), e.getPublishedAt(),
+                e.getAuthorUsername()
         );
     }
 }
