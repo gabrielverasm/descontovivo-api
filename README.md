@@ -66,6 +66,7 @@ Cobertura inclui:
 - Votação e comentários
 - Moderação de promoções e comentários
 - Import admin com download de imagem para R2 (SSRF protection, validação, dryRun)
+- Backfill de imagens externas para R2 (dryRun, limit, erro por item, segurança)
 - Validação de constraints (`@Size`, `@NotBlank`) → HTTP 400
 - `IllegalArgumentExceptionMapper` → HTTP 422
 - Stores e system info

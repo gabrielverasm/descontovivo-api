@@ -179,9 +179,10 @@ Remove o voto do usuário autenticado.
 
 ## Endpoints Admin (role `admin` ou header `X-Admin-Import-Token`)
 
-| Método | Endpoint                             | Descrição                        |
-|--------|--------------------------------------|----------------------------------|
-| POST   | /admin/promotions/import             | Importar promoções via JSON      |
+| Método | Endpoint                             | Descrição                                    |
+|--------|--------------------------------------|----------------------------------------------|
+| POST   | /admin/promotions/import             | Importar promoções via JSON                  |
+| POST   | /admin/promotions/images/backfill    | Backfill imagens externas para R2            |
 
 ### POST /admin/promotions/import?dryRun=false
 
@@ -284,6 +285,73 @@ DELETE FROM promotion WHERE source = 'ADMIN_JSON_IMPORT' AND batch_id = '<batchI
 ```
 
 Campos persistidos por item: `marketplace`, `sellerName`, `soldBy`, `deliveredBy`, `category`, `sourceId`, `batchId`, `source`, `authorUsername`, `publishAt`, `verifiedAt`.
+
+---
+
+### POST /admin/promotions/images/backfill?dryRun=true&limit=20
+
+Backfill de imagens externas para o Cloudflare R2. Encontra promoções que ainda apontam para domínios externos (Amazon, Magalu, etc.) e copia as imagens para o R2.
+
+Autorização: role `admin` via JWT **ou** header `X-Admin-Import-Token` com valor configurado em `ADMIN_IMPORT_TOKEN`.
+
+Query params:
+
+| Parâmetro | Tipo    | Default | Descrição                                                |
+|-----------|---------|---------|----------------------------------------------------------|
+| dryRun    | boolean | true    | Se true, lista elegíveis sem baixar/salvar               |
+| limit     | int     | 20      | Quantidade máxima de promoções a processar (máx: 100)    |
+
+Não requer request body.
+
+Regras:
+
+- `dryRun=true` por padrão (segurança contra execução acidental)
+- Promoções com `imageUrl` que já começa com `R2_PUBLIC_BASE_URL` são ignoradas
+- Cada item é processado em transação isolada — falha em um não afeta os outros
+- Promoções com falha mantêm `imageUrl` e `imageKey` originais (sem data loss)
+- A execução real deve ser feita em lotes pequenos (recomendado: 10-20 por vez)
+- Imagens são processadas com o mesmo pipeline do import admin (resize 300x300, WebP, SSRF protection)
+
+> **Uso recomendado:**
+> 1. Executar com `dryRun=true` para ver quais promoções seriam afetadas
+> 2. Executar com `dryRun=false` e `limit=10` em lotes pequenos
+> 3. Repetir até não haver mais elegíveis
+
+Response:
+
+```json
+{
+  "dryRun": false,
+  "scanned": 10,
+  "eligible": 10,
+  "updated": 9,
+  "failed": 1,
+  "items": [
+    {
+      "promotionId": "uuid",
+      "slug": "produto-exemplo",
+      "title": "Produto Exemplo",
+      "oldImageUrl": "https://m.media-amazon.com/images/I/example.jpg",
+      "newImageUrl": "https://img.descontovivo.com.br/promotions/imported/2025/07/uuid.webp",
+      "imageKey": "promotions/imported/2025/07/uuid.webp",
+      "status": "UPDATED",
+      "error": null
+    },
+    {
+      "promotionId": "uuid",
+      "slug": "produto-com-erro",
+      "title": "Produto Com Erro",
+      "oldImageUrl": "https://broken-link.example/img.jpg",
+      "newImageUrl": null,
+      "imageKey": null,
+      "status": "FAILED",
+      "error": "Erro ao baixar imagem: conexão falhou"
+    }
+  ]
+}
+```
+
+Status possíveis por item: `ELIGIBLE` (dry run), `UPDATED` (sucesso), `FAILED` (erro).
 
 ---
 ### PATCH /moderation/promotions/{id}
