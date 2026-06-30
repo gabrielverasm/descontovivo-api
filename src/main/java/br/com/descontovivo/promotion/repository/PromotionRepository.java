@@ -92,4 +92,11 @@ public class PromotionRepository implements PanacheRepositoryBase<PromotionEntit
     public boolean existsByNormalizedUrl(String normalizedUrl) {
         return count("normalizedUrl", normalizedUrl) > 0;
     }
+
+    public List<PromotionEntity> findWithExternalImage(String r2BaseUrl, int limit) {
+        return find("imageUrl is not null and imageUrl <> '' and imageUrl not like ?1",
+                Sort.by("createdAt").ascending(), r2BaseUrl + "%")
+                .page(Page.of(0, limit))
+                .list();
+    }
 }
