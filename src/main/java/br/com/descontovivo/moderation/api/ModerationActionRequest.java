@@ -16,6 +16,7 @@ public record ModerationActionRequest(
         BigDecimal originalPrice,
         @Size(max = 80) String couponCode,
         @Size(max = 2048) String imageUrl,
+        @Size(max = 200) String imageKey,
         @Size(max = 30) String availability,
         @Size(max = 120) String storeSlug,
         @Size(max = 100) String soldBy,

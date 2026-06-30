@@ -27,6 +27,7 @@ class ModerationResourceTest {
     void setUp() {
         mockR2.clearDeletedKeys();
         mockR2.setShouldFailOnDelete(false);
+        mockR2.setShouldFailOnPromote(false);
     }
 
     @Test
@@ -226,7 +227,147 @@ class ModerationResourceTest {
             .when().patch("/api/v1/moderation/promotions/" + id)
             .then().statusCode(200);
 
-        assertTrue(mockR2.getDeletedKeys().isEmpty(), "Should NOT delete image on EDIT");
+        assertTrue(mockR2.getDeletedKeys().isEmpty(), "Should NOT delete image on EDIT without image change");
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldEditImageWithValidTempKey() {
+        var id = createPromotion();
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "action": "EDIT",
+                    "reason": "Trocar imagem",
+                    "imageKey": "temp/promotions/2026/07/new-image.webp"
+                }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(200)
+            .body("imageUrl", is("https://img.descontovivo.com.br/promotions/2026/07/new-image.webp"));
+
+        // Old image should have been deleted
+        assertFalse(mockR2.getDeletedKeys().isEmpty(), "Old image should be deleted after replacement");
+        assertTrue(mockR2.getDeletedKeys().stream()
+                .anyMatch(k -> k.startsWith("promotions/2026/06/mod-")));
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldRejectInvalidImageKey() {
+        var id = createPromotion();
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "action": "EDIT",
+                    "reason": "Trocar imagem",
+                    "imageKey": "promotions/2026/07/direct-injection.webp"
+                }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(422);
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldRejectExternalImageUrlWithoutImageKey() {
+        var id = createPromotion();
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "action": "EDIT",
+                    "reason": "Injetar URL",
+                    "imageUrl": "https://evil.com/malware.jpg"
+                }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(422);
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldKeepCurrentImageWhenNoImageFieldsSent() {
+        var id = createPromotion();
+
+        var originalImageUrl = given()
+            .contentType(ContentType.JSON)
+            .body("""
+                { "action": "APPROVE", "reason": "OK" }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then().statusCode(200)
+            .extract().jsonPath().getString("imageUrl");
+
+        mockR2.clearDeletedKeys();
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                { "action": "EDIT", "reason": "Fix title only", "title": "New Title" }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(200)
+            .body("imageUrl", is(originalImageUrl))
+            .body("title", is("New Title"));
+
+        assertTrue(mockR2.getDeletedKeys().isEmpty(), "Should NOT touch image when not changing it");
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldNotDeleteOldImageWhenPromoteFails() {
+        var id = createPromotion();
+        mockR2.setShouldFailOnPromote(true);
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "action": "EDIT",
+                    "reason": "Trocar imagem",
+                    "imageKey": "temp/promotions/2026/07/fail.webp"
+                }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(500);
+
+        assertTrue(mockR2.getDeletedKeys().isEmpty(), "Old image must NOT be deleted when promote fails");
     }
 
     @Test
