@@ -65,6 +65,7 @@ Cobertura inclui:
 - CRUD de promoções (auth, 401, 403, 409)
 - Votação e comentários
 - Moderação de promoções e comentários
+- Troca de imagem via moderação (promoção de temp key, remoção de imagem antiga, rejeição de URL externo)
 - Import admin com download de imagem para R2 (SSRF protection, validação, dryRun)
 - Backfill de imagens externas para R2 (dryRun, limit, erro por item, segurança)
 - Validação de constraints (`@Size`, `@NotBlank`) → HTTP 400

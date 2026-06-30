@@ -368,6 +368,26 @@ Edição (campos flat no DTO):
 { "action": "EDIT", "reason": "Correção de título", "title": "Título corrigido" }
 ```
 
+#### Troca de imagem na edição
+
+Para trocar a imagem da promoção, envie `imageKey` com a chave temporária gerada pelo upload:
+
+```json
+{ "action": "EDIT", "reason": "Imagem melhor", "imageKey": "temp/promotions/2026/07/uuid.webp" }
+```
+
+| Campo      | Obrigatório | Regras                                                        |
+|------------|-------------|---------------------------------------------------------------|
+| imageKey   | não         | max 200 chars; deve começar com `temp/promotions/`            |
+| imageUrl   | ignorado    | **não** usar para troca de imagem; enviar `imageKey` apenas   |
+
+> **Comportamento:**
+> - Se `imageKey` vier preenchido: valida prefixo `temp/promotions/`, promove para R2 final, atualiza `imageKey` e `imageUrl` na entidade, remove imagem antiga do R2.
+> - Se apenas `imageUrl` vier (sem `imageKey`): retorna **422** — imagem externa não é aceita na edição.
+> - Se nenhum campo de imagem vier: mantém imagem atual inalterada.
+> - Imagens finais sempre residem no R2 (`promotions/...`).
+> - A imagem antiga só é removida **após** a nova ser promovida e persistida com sucesso.
+
 ### PATCH /moderation/comments/{id}
 
 Ação: `REMOVE` (reason obrigatório).

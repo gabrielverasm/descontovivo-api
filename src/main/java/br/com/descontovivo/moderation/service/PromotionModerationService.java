@@ -114,7 +114,7 @@ public class PromotionModerationService {
         if (req.currentPrice() != null) entity.setCurrentPrice(req.currentPrice());
         if (req.originalPrice() != null) entity.setOriginalPrice(req.originalPrice());
         if (req.couponCode() != null) entity.setCouponCode(req.couponCode());
-        if (req.imageUrl() != null) entity.setImageUrl(req.imageUrl());
+        updateImageIfRequested(entity, req);
         if (req.availability() != null) entity.setAvailability(OfferAvailability.valueOf(req.availability()));
         if (req.storeSlug() != null) {
             var store = storeRepository.findBySlug(req.storeSlug())
@@ -124,5 +124,27 @@ public class PromotionModerationService {
         if (req.soldBy() != null) entity.setSoldBy(req.soldBy());
         if (req.deliveredBy() != null) entity.setDeliveredBy(req.deliveredBy());
         if (req.category() != null) entity.setCategory(req.category());
+    }
+
+    private void updateImageIfRequested(PromotionEntity entity, ModerationActionRequest req) {
+        if (req.imageKey() != null) {
+            r2StorageService.validateTempKey(req.imageKey());
+
+            String oldImageKey = entity.getImageKey();
+
+            String finalImageKey = r2StorageService.promoteImage(req.imageKey());
+            String finalImageUrl = r2StorageService.buildPublicUrl(finalImageKey);
+
+            entity.setImageKey(finalImageKey);
+            entity.setImageUrl(finalImageUrl);
+
+            if (oldImageKey != null && oldImageKey.startsWith("promotions/")
+                    && !oldImageKey.equals(finalImageKey)) {
+                r2StorageService.deletePromotionImageIfPresent(oldImageKey);
+            }
+        } else if (req.imageUrl() != null) {
+            throw new IllegalArgumentException(
+                    "imageUrl externo não é permitido na edição; envie imageKey temporário gerado pelo upload");
+        }
     }
 }

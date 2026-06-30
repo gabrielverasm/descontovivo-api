@@ -17,6 +17,7 @@ public class MockR2StorageService extends R2StorageService {
     private final Map<String, byte[]> uploadedImages = new ConcurrentHashMap<>();
     private boolean shouldFailOnDelete = false;
     private boolean shouldFailOnUpload = false;
+    private boolean shouldFailOnPromote = false;
 
     public MockR2StorageService() {
         super(null, null);
@@ -25,6 +26,9 @@ public class MockR2StorageService extends R2StorageService {
     @Override
     public String promoteImage(String tempImageKey) {
         validateTempKey(tempImageKey);
+        if (shouldFailOnPromote) {
+            throw new RuntimeException("Simulated R2 promote failure");
+        }
         return "promotions/" + tempImageKey.substring("temp/promotions/".length());
     }
 
@@ -80,5 +84,9 @@ public class MockR2StorageService extends R2StorageService {
 
     public void setShouldFailOnUpload(boolean shouldFail) {
         this.shouldFailOnUpload = shouldFail;
+    }
+
+    public void setShouldFailOnPromote(boolean shouldFail) {
+        this.shouldFailOnPromote = shouldFail;
     }
 }
