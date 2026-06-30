@@ -1,8 +1,8 @@
 # DescontoVivo API
 
-Backend do DescontoVivo — portal de promoções com foco em comunidade, contexto e sinais de confiança.
+Backend do DescontoVivo — portal público de promoções com moderação, confiança e comunidade.
 
-API principal consumida pelo frontend `descontovivo-ui`.
+API REST consumida pelo frontend Angular ([descontovivo-ui](https://github.com/gabrielverasm/descontovivo-ui)).
 
 ## Stack
 
@@ -20,9 +20,10 @@ API principal consumida pelo frontend `descontovivo-ui`.
 
 ## Arquitetura
 
-- Monólito modular (hexagonal pragmático)
-- Módulos atuais: `promotion`, `engagement`, `store`, `moderation`, `account`, `upload`, `shared`
-- Request/Response DTOs, Domain Value Objects, Entities JPA, Panache Repositories
+- Monólito modular com separação hexagonal pragmática.
+- Módulos: `promotion`, `engagement`, `store`, `moderation`, `account`, `upload`, `shared`.
+- Request/Response DTOs, Domain Value Objects, Entities JPA, Panache Repositories.
+- Detalhes em [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Desenvolvimento local
 
@@ -178,3 +179,28 @@ R2_REGION=auto
 | API       | `https://api.descontovivo.com`     |
 | Auth      | `https://auth.descontovivo.com`    |
 | Imagens   | `https://img.descontovivo.com.br`  |
+
+## Status do MVP
+
+A API está funcional e publicada com:
+
+- CRUD de promoções com autenticação e moderação.
+- Votação e comentários.
+- Import administrativo com download e processamento de imagem para R2.
+- Backfill de imagens externas para R2.
+- Upload temporário com presigned URL e promoção de imagem.
+- Segurança: JWT Bearer, roles, SSRF protection, sem hotlink externo.
+- Testes automatizados cobrindo fluxos principais.
+
+Para o roadmap completo, veja [`docs/ROADMAP.md`](docs/ROADMAP.md).
+
+## Documentação adicional
+
+- [Contratos REST](docs/API_CONTRACTS.md)
+- [Arquitetura](docs/ARCHITECTURE.md)
+- [Regras de negócio](docs/BUSINESS_RULES.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Resumo para portfólio](docs/PORTFOLIO_SUMMARY.md)
+- [Keycloak local](docs/KEYCLOAK_LOCAL.md)
+- [Produção](docs/PRODUCTION_API.md)
+- [ADRs](docs/adr/)
