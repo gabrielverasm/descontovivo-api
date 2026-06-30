@@ -12,9 +12,13 @@ import br.com.descontovivo.promotion.support.PromotionNormalizer;
 import br.com.descontovivo.promotion.support.SlugGenerator;
 import br.com.descontovivo.store.entity.StoreEntity;
 import br.com.descontovivo.store.repository.StoreRepository;
+import br.com.descontovivo.upload.service.RemoteImageImportService;
+import br.com.descontovivo.upload.service.RemoteImageImportService.ImportedImage;
+import br.com.descontovivo.upload.service.RemoteImageImportService.RemoteImageException;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.logging.Logger;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -26,18 +30,23 @@ import java.util.*;
 @ApplicationScoped
 public class AdminImportService {
 
+    private static final Logger LOG = Logger.getLogger(AdminImportService.class);
     private static final String SOURCE = "ADMIN_JSON_IMPORT";
     private static final ZoneId SAO_PAULO = ZoneId.of("America/Sao_Paulo");
 
     private final PromotionRepository promotionRepository;
     private final StoreRepository storeRepository;
+    private final RemoteImageImportService remoteImageImportService;
 
     @ConfigProperty(name = "admin.import.default-author", defaultValue = "gabrielveras")
     String defaultAuthor;
 
-    public AdminImportService(PromotionRepository promotionRepository, StoreRepository storeRepository) {
+    public AdminImportService(PromotionRepository promotionRepository,
+                              StoreRepository storeRepository,
+                              RemoteImageImportService remoteImageImportService) {
         this.promotionRepository = promotionRepository;
         this.storeRepository = storeRepository;
+        this.remoteImageImportService = remoteImageImportService;
     }
 
     @Transactional
@@ -97,7 +106,23 @@ public class AdminImportService {
             }
 
             if (!dryRun) {
-                persist(item, batchId, importStartedAt, normalizedUrl);
+                // Import image from external URL to R2
+                ImportedImage importedImage;
+                try {
+                    importedImage = remoteImageImportService.importImage(item.imageUrl());
+                } catch (RemoteImageException e) {
+                    errors.add(new AdminImportError(item.sourceId(), "imageUrl", e.getMessage()));
+                    continue;
+                }
+                persist(item, batchId, importStartedAt, normalizedUrl, importedImage);
+            } else {
+                // Dry run: validate URL format and host only
+                try {
+                    remoteImageImportService.validateUrlForDryRun(item.imageUrl());
+                } catch (RemoteImageException e) {
+                    errors.add(new AdminImportError(item.sourceId(), "imageUrl", e.getMessage()));
+                    continue;
+                }
             }
             created++;
         }
@@ -105,7 +130,7 @@ public class AdminImportService {
         return new AdminImportResponse(batchId, dryRun, created, skipped, errors);
     }
 
-    private void persist(AdminImportItemRequest item, String batchId, OffsetDateTime importStartedAt, String normalizedUrl) {
+    private void persist(AdminImportItemRequest item, String batchId, OffsetDateTime importStartedAt, String normalizedUrl, ImportedImage importedImage) {
         var store = findOrCreateStore(item.storeName());
 
         String slug = generateUniqueSlug(item.title());
@@ -123,7 +148,8 @@ public class AdminImportService {
         entity.setCurrentPrice(item.currentPrice());
         entity.setOriginalPrice(item.originalPrice());
         entity.setCouponCode(item.coupon());
-        entity.setImageUrl(item.imageUrl());
+        entity.setImageUrl(importedImage.imageUrl());
+        entity.setImageKey(importedImage.imageKey());
         entity.setStatus(PromotionStatus.PUBLISHED);
         entity.setAvailability(OfferAvailability.AVAILABLE);
         entity.setStore(store);

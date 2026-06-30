@@ -65,6 +65,7 @@ Cobertura inclui:
 - CRUD de promoções (auth, 401, 403, 409)
 - Votação e comentários
 - Moderação de promoções e comentários
+- Import admin com download de imagem para R2 (SSRF protection, validação, dryRun)
 - Validação de constraints (`@Size`, `@NotBlank`) → HTTP 400
 - `IllegalArgumentExceptionMapper` → HTTP 422
 - Stores e system info
@@ -88,6 +89,14 @@ Cobertura inclui:
 | `R2_PUBLIC_BASE_URL`                | URL pública das imagens            |
 
 > **Override avançado:** também é possível usar `QUARKUS_OIDC_AUTH_SERVER_URL` e `QUARKUS_OIDC_CLIENT_ID` diretamente, que sobrescrevem qualquer valor do application.properties.
+
+#### Variáveis opcionais (image processing)
+
+| Variável                            | Default | Descrição                               |
+|-------------------------------------|---------|-------------------------------------------|
+| `IMAGE_MAX_UPLOAD_BYTES`            | 2097152 | Tamanho máximo do download (2MB)          |
+| `IMAGE_TARGET_SIZE`                 | 300     | Dimensão alvo em pixels (300x300)        |
+| `IMAGE_WEBP_QUALITY`                | 75      | Qualidade WebP (1-100)                    |
 
 ### Build e deploy
 

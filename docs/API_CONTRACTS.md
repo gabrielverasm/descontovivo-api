@@ -209,7 +209,7 @@ Request body:
       "soldBy": "<vendido-por>",
       "deliveredBy": "<entregue-por>",
       "productUrl": "<url-produto>",
-      "imageUrl": "<url-imagem>",
+      "imageUrl": "<url-imagem-origem>",
       "currentPrice": 0.01,
       "originalPrice": null,
       "coupon": null,
@@ -230,6 +230,21 @@ Regras:
 - Se `sourceId` já existir no banco, item é **pulado** (skipped)
 - Se `productUrl` normalizado já existir, item é **pulado**
 - Store é criada automaticamente se não existir
+
+> **Comportamento de imageUrl no import admin:**
+> - O campo `imageUrl` é a **URL de origem** da imagem (ex: Amazon, Magalu, Mercado Livre).
+> - A API **baixa a imagem**, valida formato/tamanho, **processa (resize 300x300, conversão WebP)** e **salva no Cloudflare R2**.
+> - Processamento: resize com `contain` (preserva proporção, sem cortar o produto, padding branco para 300x300).
+> - A promoção é persistida com `imageUrl` apontando para R2 (`https://img.descontovivo.com.br/promotions/imported/...`) e `imageKey` preenchido.
+> - Nenhuma promoção importada fica com hotlink externo.
+> - Se a imagem não puder ser baixada/validada/processada/salva no R2, o item **falha** com erro claro.
+> - No `dryRun`, apenas formato da URL e proteção SSRF são validados (sem download/upload real).
+> - Formatos aceitos na origem: `image/jpeg`, `image/png`, `image/webp`.
+> - Formato final salvo no R2: sempre `image/webp`.
+> - Tamanho máximo do download: configurado via `IMAGE_MAX_UPLOAD_BYTES` (default 2MB).
+> - Tamanho alvo da imagem final: `IMAGE_TARGET_SIZE` (default 300px).
+> - Qualidade WebP: `IMAGE_WEBP_QUALITY` (default 75).
+> - Proteção SSRF: bloqueio de localhost, IPs privados, link-local, multicast.
 
 Response:
 
