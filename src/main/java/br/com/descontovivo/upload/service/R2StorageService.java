@@ -3,9 +3,11 @@ package br.com.descontovivo.upload.service;
 import br.com.descontovivo.upload.config.R2Config;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.jboss.logging.Logger;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 @ApplicationScoped
 public class R2StorageService {
@@ -55,6 +57,18 @@ public class R2StorageService {
         if (imageKey == null || !imageKey.startsWith(TEMP_PREFIX)) {
             throw new IllegalArgumentException("imageKey must start with '" + TEMP_PREFIX + "'");
         }
+    }
+
+    public void putImportedImage(byte[] bytes, String contentType, String imageKey) {
+        PutObjectRequest putRequest = PutObjectRequest.builder()
+                .bucket(r2Config.bucket())
+                .key(imageKey)
+                .contentType(contentType)
+                .contentLength((long) bytes.length)
+                .build();
+
+        s3Client.putObject(putRequest, RequestBody.fromBytes(bytes));
+        LOG.infof("Uploaded imported image: %s (%d bytes, %s)", imageKey, bytes.length, contentType);
     }
 
     private void copyObject(String sourceKey, String destinationKey) {

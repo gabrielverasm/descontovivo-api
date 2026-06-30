@@ -1,6 +1,7 @@
 package br.com.descontovivo.promotion.api.admin;
 
 import br.com.descontovivo.promotion.support.SlugGenerator;
+import br.com.descontovivo.upload.mock.MockRemoteImageImportService;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;
 import io.quarkus.test.junit.TestProfile;
@@ -9,6 +10,8 @@ import io.quarkus.test.security.oidc.Claim;
 import io.quarkus.test.security.oidc.ClaimType;
 import io.quarkus.test.security.oidc.OidcSecurity;
 import io.restassured.http.ContentType;
+import jakarta.inject.Inject;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.OffsetDateTime;
@@ -17,6 +20,7 @@ import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 @QuarkusTest
 @TestProfile(AdminImportResourceTest.Profile.class)
@@ -33,6 +37,14 @@ class AdminImportResourceTest {
     }
 
     private static final String IMPORT_PATH = "/api/v1/admin/promotions/import";
+
+    @Inject
+    MockRemoteImageImportService mockImageImport;
+
+    @BeforeEach
+    void setUp() {
+        mockImageImport.reset();
+    }
 
     // --- Security tests ---
 
@@ -129,6 +141,27 @@ class AdminImportResourceTest {
             .body("skipped", is(0));
     }
 
+    @Test
+    void shouldNotUploadToR2OnDryRun() {
+        var sourceId = "dryrun-noupload-" + uid();
+        mockImageImport.clearImportedUrls();
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .queryParam("dryRun", true)
+            .body(validImportBody(sourceId))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("dryRun", is(true))
+            .body("created", is(1));
+
+        // Mock should NOT have received any importImage calls
+        assertTrue(mockImageImport.getImportedUrls().isEmpty(),
+                "DryRun should not trigger image import to R2");
+    }
+
     // --- Persistence and dedup tests ---
 
     @Test
@@ -195,6 +228,219 @@ class AdminImportResourceTest {
             .statusCode(200)
             .body("created", is(1))
             .body("skipped", is(1));
+    }
+
+    // --- Image import to R2 tests ---
+
+    @Test
+    void shouldImportImageToR2OnRealImport() {
+        var sourceId = "img-r2-" + uid();
+        mockImageImport.clearImportedUrls();
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .body(validImportBody(sourceId))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("created", is(1));
+
+        // Should have called importImage with the external URL
+        assertEquals(1, mockImageImport.getImportedUrls().size());
+        assertTrue(mockImageImport.getImportedUrls().get(0).contains("images.example.com"));
+    }
+
+    @Test
+    void shouldSavePromotionWithR2ImageUrl() {
+        var sourceId = "r2-url-" + uid();
+        var title = "R2 Image Test " + sourceId;
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .body("""
+                {
+                  "items": [{
+                    "sourceId": "%s",
+                    "title": "%s",
+                    "description": "Test R2 image",
+                    "marketplace": "AMAZON",
+                    "storeName": "Amazon",
+                    "productUrl": "https://example.com/r2-url-%s",
+                    "imageUrl": "https://images.example.com/external.jpg",
+                    "currentPrice": 149.90
+                  }]
+                }
+            """.formatted(sourceId, title, sourceId))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("created", is(1));
+
+        // Verify the promotion was saved with R2 URL (not external URL) and WebP format
+        var slug = SlugGenerator.fromTitle(title);
+        given()
+            .when().get("/api/v1/promotions/" + slug)
+            .then()
+            .statusCode(200)
+            .body("imageUrl", startsWith("https://img.descontovivo.com.br/promotions/imported/"))
+            .body("imageUrl", endsWith(".webp"))
+            .body("imageUrl", not(containsString("images.example.com")));
+    }
+
+    @Test
+    void shouldNotSaveExternalImageUrlInPromotion() {
+        var sourceId = "no-ext-" + uid();
+        var title = "No External Image " + sourceId;
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .body("""
+                {
+                  "items": [{
+                    "sourceId": "%s",
+                    "title": "%s",
+                    "description": "Must not save external URL",
+                    "marketplace": "MAGALU",
+                    "storeName": "Magazine Luiza",
+                    "productUrl": "https://example.com/no-ext-%s",
+                    "imageUrl": "https://m.media-amazon.com/images/I/external.jpg",
+                    "currentPrice": 299.90
+                  }]
+                }
+            """.formatted(sourceId, title, sourceId))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("created", is(1));
+
+        var slug = SlugGenerator.fromTitle(title);
+        given()
+            .when().get("/api/v1/promotions/" + slug)
+            .then()
+            .statusCode(200)
+            .body("imageUrl", not(containsString("m.media-amazon.com")))
+            .body("imageUrl", startsWith("https://img.descontovivo.com.br/"));
+    }
+
+    @Test
+    void shouldFailItemWhenImageImportFails() {
+        var sourceId = "img-fail-" + uid();
+        mockImageImport.setShouldFail(true);
+        mockImageImport.setFailureMessage("Erro ao baixar imagem: conexão falhou");
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .body(validImportBody(sourceId))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("created", is(0))
+            .body("errors.size()", is(1))
+            .body("errors[0].sourceId", is(sourceId))
+            .body("errors[0].field", is("imageUrl"))
+            .body("errors[0].message", containsString("Erro ao baixar imagem"));
+    }
+
+    @Test
+    void shouldRejectLocalhostUrlOnDryRun() {
+        var sourceId = "ssrf-dry-" + uid();
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .queryParam("dryRun", true)
+            .body("""
+                {
+                  "items": [{
+                    "sourceId": "%s",
+                    "title": "SSRF test",
+                    "description": "Should block localhost",
+                    "marketplace": "AMAZON",
+                    "storeName": "Amazon",
+                    "productUrl": "https://example.com/ssrf-%s",
+                    "imageUrl": "http://localhost:8080/internal-image.jpg",
+                    "currentPrice": 99.00
+                  }]
+                }
+            """.formatted(sourceId, sourceId))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("created", is(0))
+            .body("errors.size()", is(1))
+            .body("errors[0].field", is("imageUrl"))
+            .body("errors[0].message", containsString("bloqueado"));
+    }
+
+    @Test
+    void shouldRejectPrivateIpUrlOnDryRun() {
+        var sourceId = "ssrf-ip-" + uid();
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .queryParam("dryRun", true)
+            .body("""
+                {
+                  "items": [{
+                    "sourceId": "%s",
+                    "title": "SSRF IP test",
+                    "description": "Should block private IP",
+                    "marketplace": "AMAZON",
+                    "storeName": "Amazon",
+                    "productUrl": "https://example.com/ssrf-ip-%s",
+                    "imageUrl": "http://192.168.1.1/image.jpg",
+                    "currentPrice": 99.00
+                  }]
+                }
+            """.formatted(sourceId, sourceId))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("created", is(0))
+            .body("errors.size()", is(1))
+            .body("errors[0].field", is("imageUrl"))
+            .body("errors[0].message", containsString("bloqueado"));
+    }
+
+    @Test
+    void shouldNotPersistPromotionWhenImageFails() {
+        var sourceId = "no-persist-" + uid();
+        var title = "No Persist On Fail " + sourceId;
+        mockImageImport.setShouldFail(true);
+        mockImageImport.setFailureMessage("Simulated R2 failure");
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .body("""
+                {
+                  "items": [{
+                    "sourceId": "%s",
+                    "title": "%s",
+                    "description": "Must not be saved",
+                    "marketplace": "AMAZON",
+                    "storeName": "Amazon",
+                    "productUrl": "https://example.com/nopersist-%s",
+                    "imageUrl": "https://images.example.com/fail.jpg",
+                    "currentPrice": 199.90
+                  }]
+                }
+            """.formatted(sourceId, title, sourceId))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("created", is(0))
+            .body("errors.size()", is(1));
+
+        // Promotion should NOT exist
+        var slug = SlugGenerator.fromTitle(title);
+        given()
+            .when().get("/api/v1/promotions/" + slug)
+            .then()
+            .statusCode(404);
     }
 
     // --- publishAt tests ---
