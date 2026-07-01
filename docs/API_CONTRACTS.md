@@ -96,7 +96,6 @@ Request mínimo:
   "title": "Produto em promoção",
   "url": "https://www.amazon.com.br/dp/B0...",
   "currentPrice": 99.90,
-  "imageUrl": "https://img.descontovivo.com.br/temp/promotions/2026/06/uuid.webp",
   "imageKey": "temp/promotions/2026/06/uuid.webp"
 }
 ```
@@ -106,7 +105,6 @@ Request mínimo:
 | title         | sim         | max 180 chars                                                 |
 | url           | sim         | max 2048 chars                                                |
 | currentPrice  | sim         | > 0                                                           |
-| imageUrl      | sim         | max 2048 chars; ignorado pela API (reconstruído internamente) |
 | imageKey      | sim         | max 200 chars; deve começar com `temp/promotions/`            |
 | description   | não         | max 2000 chars; se omitido, usa title como fallback           |
 | originalPrice | não         | preço anterior (riscado)                                      |
@@ -118,9 +116,8 @@ Resposta: `201` com `PromotionDetailResponse`. Status inicial: `PENDING_REVIEW`.
 > **Comportamento da API ao criar promoção:**
 > - Valida que `imageKey` começa com `temp/promotions/`. Caso contrário, retorna `422`.
 > - Copia a imagem no R2 de `temp/promotions/yyyy/MM/uuid.webp` para `promotions/yyyy/MM/uuid.webp`.
-> - Salva e retorna `imageKey` e `imageUrl` finais com prefixo `promotions/`.
+> - Salva a promoção com `imageKey` e `imageUrl` finais com prefixo `promotions/`. A resposta pública expõe apenas `imageUrl`.
 > - Nenhuma promoção criada fica apontando para `temp/promotions/`.
-> - O `imageUrl` enviado pelo Angular é ignorado; a API reconstrói a URL final.
 
 ### POST /uploads/promotion-image/presign — Gerar URL de upload
 
@@ -147,9 +144,9 @@ Resposta:
 Fluxo Angular:
 1. Chamar presign → receber `uploadUrl`, `publicUrl`, `objectKey`
 2. Fazer PUT do arquivo .webp no `uploadUrl` com header `Content-Type: image/webp`
-3. Enviar `objectKey` como `imageKey` (e `publicUrl` como `imageUrl`) no POST /promotions
+3. Enviar `objectKey` como `imageKey` no POST /promotions
 4. A API promove a imagem de `temp/promotions/` para `promotions/` antes de persistir
-5. A resposta da API já contém `imageKey` e `imageUrl` finais (sem `temp/`)
+5. A resposta da API já contém `imageUrl` final, sem `temp/`. O `imageKey` não é exposto nas respostas públicas.
 
 > **Nota:** `temp/promotions/` é apenas área provisória de upload. Imagens órfãs (não submetidas) com mais de 7 dias serão limpas automaticamente por job futuro (TODO).
 
