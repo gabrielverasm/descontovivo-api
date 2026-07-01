@@ -43,7 +43,6 @@ class PromotionResourceTest {
                     "title": "URL List Test %s",
                     "url": "%s",
                     "currentPrice": 49.90,
-                    "imageUrl": "https://images.example.com/url-list.jpg",
                     "imageKey": "temp/promotions/2026/06/url-list-%s.webp",
                     "storeSlug": "amazon"
                 }
@@ -86,7 +85,6 @@ class PromotionResourceTest {
                     "title": "URL Detail Test %s",
                     "url": "%s",
                     "currentPrice": 79.90,
-                    "imageUrl": "https://images.example.com/url-detail.jpg",
                     "imageKey": "temp/promotions/2026/06/url-detail-%s.webp",
                     "storeSlug": "amazon"
                 }
@@ -121,7 +119,6 @@ class PromotionResourceTest {
                     "title": "Test",
                     "url": "https://example.com/test",
                     "currentPrice": 10.00,
-                    "imageUrl": "https://images.example.com/test.jpg",
                     "imageKey": "temp/promotions/2026/06/test.webp"
                 }
             """)
@@ -146,7 +143,6 @@ class PromotionResourceTest {
                     "title": "Unverified Test",
                     "url": "https://example.com/unverified",
                     "currentPrice": 10.00,
-                    "imageUrl": "https://images.example.com/test.jpg",
                     "imageKey": "temp/promotions/2026/06/unverified.webp"
                 }
             """)
@@ -172,10 +168,9 @@ class PromotionResourceTest {
                     "title": "Produto Mínimo %s",
                     "url": "https://www.amazon.com.br/minimal-%s",
                     "currentPrice": 99.90,
-                    "imageUrl": "https://img.descontovivo.com.br/temp/promotions/2026/06/%s.webp",
                     "imageKey": "temp/promotions/2026/06/%s.webp"
                 }
-            """.formatted(uid, uid, uid, uid))
+            """.formatted(uid, uid, uid))
 
             .when().post("/api/v1/promotions")
             .then()
@@ -207,7 +202,6 @@ class PromotionResourceTest {
                     "description": "Auth test %s",
                     "currentPrice": 199.00,
                     "originalPrice": 399.00,
-                    "imageUrl": "https://images.example.com/auth.jpg",
                     "imageKey": "temp/promotions/2026/06/auth-%s.webp",
                     "storeSlug": "magalu"
                 }
@@ -236,7 +230,6 @@ class PromotionResourceTest {
                     "title": "Unknown Store %s",
                     "url": "https://www.lojadesconhecida.com.br/item-%s",
                     "currentPrice": 50.00,
-                    "imageUrl": "https://images.example.com/unknown.jpg",
                     "imageKey": "temp/promotions/2026/06/unknown-%s.webp"
                 }
             """.formatted(uid, uid, uid))
@@ -261,7 +254,6 @@ class PromotionResourceTest {
                 "title": "Dup %s",
                 "url": "https://www.magalu.com.br/dup-%s",
                 "currentPrice": 100.00,
-                "imageUrl": "https://images.example.com/dup.jpg",
                 "imageKey": "temp/promotions/2026/06/dup-%s.webp",
                 "storeSlug": "magalu"
             }
@@ -292,7 +284,6 @@ class PromotionResourceTest {
                     "title": "Fake Store",
                     "url": "https://www.fake.com.br/item",
                     "currentPrice": 10.00,
-                    "imageUrl": "https://images.example.com/fake.jpg",
                     "imageKey": "temp/promotions/2026/06/fake.webp",
                     "storeSlug": "loja-fantasma"
                 }
@@ -315,8 +306,7 @@ class PromotionResourceTest {
             .body("""
                 {
                     "url": "https://www.amazon.com.br/item",
-                    "currentPrice": 10.00,
-                    "imageUrl": "https://images.example.com/img.jpg"
+                    "currentPrice": 10.00
                 }
             """)
             .when().post("/api/v1/promotions")
@@ -337,8 +327,7 @@ class PromotionResourceTest {
             .body("""
                 {
                     "title": "No URL",
-                    "currentPrice": 10.00,
-                    "imageUrl": "https://images.example.com/img.jpg"
+                    "currentPrice": 10.00
                 }
             """)
             .when().post("/api/v1/promotions")
@@ -359,31 +348,7 @@ class PromotionResourceTest {
             .body("""
                 {
                     "title": "No Price",
-                    "url": "https://www.amazon.com.br/item",
-                    "imageUrl": "https://images.example.com/img.jpg"
-                }
-            """)
-            .when().post("/api/v1/promotions")
-            .then().statusCode(400);
-    }
-
-    @Test
-    @TestSecurity(user = "user-verified", roles = "user")
-    @OidcSecurity(claims = {
-        @Claim(key = "sub", value = "user-verified-sub"),
-        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
-        @Claim(key = "email", value = "user@test.local"),
-        @Claim(key = "preferred_username", value = "user-verified")
-    })
-    void shouldReturn400WhenImageUrlMissing() {
-        given()
-            .contentType(ContentType.JSON)
-            .body("""
-                {
-                    "title": "No Image",
-                    "url": "https://www.amazon.com.br/item",
-                    "currentPrice": 10.00,
-                    "imageKey": "temp/promotions/2026/06/noimg.webp"
+                    "url": "https://www.amazon.com.br/item"
                 }
             """)
             .when().post("/api/v1/promotions")
@@ -405,8 +370,7 @@ class PromotionResourceTest {
                 {
                     "title": "No Key",
                     "url": "https://www.amazon.com.br/item",
-                    "currentPrice": 10.00,
-                    "imageUrl": "https://images.example.com/img.jpg"
+                    "currentPrice": 10.00
                 }
             """)
             .when().post("/api/v1/promotions")
@@ -429,7 +393,6 @@ class PromotionResourceTest {
                     "title": "Invalid Key",
                     "url": "https://www.amazon.com.br/invalid-key",
                     "currentPrice": 10.00,
-                    "imageUrl": "https://img.descontovivo.com.br/promotions/2026/06/a.webp",
                     "imageKey": "promotions/2026/06/a.webp"
                 }
             """)
@@ -453,7 +416,6 @@ class PromotionResourceTest {
                     "title": "Arbitrary Key",
                     "url": "https://www.amazon.com.br/arbitrary-key",
                     "currentPrice": 10.00,
-                    "imageUrl": "https://img.descontovivo.com.br/abc/a.webp",
                     "imageKey": "abc/a.webp"
                 }
             """)
