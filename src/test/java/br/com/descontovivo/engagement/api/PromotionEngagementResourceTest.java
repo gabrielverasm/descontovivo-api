@@ -72,7 +72,7 @@ class PromotionEngagementResourceTest {
         given()
             .contentType(ContentType.JSON)
             .body("""
-                { "authorName": "Test", "content": "Test" }
+                { "content": "Test" }
             """)
             .when().post("/api/v1/promotions/any-slug/comments")
             .then().statusCode(401);
@@ -158,12 +158,12 @@ class PromotionEngagementResourceTest {
         commentId = given()
             .contentType(ContentType.JSON)
             .body("""
-                { "authorName": "Gabriel", "content": "Ótima promoção!" }
+                { "content": "Ótima promoção!" }
             """)
             .when().post("/api/v1/promotions/" + publishedSlug + "/comments")
             .then()
             .statusCode(201)
-            .body("authorName", is("Gabriel"))
+            .body("authorName", is("commenter"))
             .body("content", is("Ótima promoção!"))
             .body("removed", is(false))
             .extract().jsonPath().getString("id");
@@ -182,13 +182,13 @@ class PromotionEngagementResourceTest {
         given()
             .contentType(ContentType.JSON)
             .body("""
-                { "authorName": "Ana", "content": "Concordo!" }
+                { "content": "Concordo!" }
             """)
             .when().post("/api/v1/comments/" + commentId + "/replies")
             .then()
             .statusCode(201)
             .body("parentId", is(commentId))
-            .body("authorName", is("Ana"));
+            .body("authorName", is("replier"));
     }
 
     @Test

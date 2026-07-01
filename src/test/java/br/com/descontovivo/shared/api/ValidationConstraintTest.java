@@ -80,7 +80,7 @@ class ValidationConstraintTest {
         given()
             .contentType(ContentType.JSON)
             .body("""
-                { "authorName": "Test", "content": "%s" }
+                { "content": "%s" }
             """.formatted("C".repeat(2001)))
             .when().post("/api/v1/promotions/any-slug/comments")
             .then()
