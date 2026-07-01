@@ -51,7 +51,7 @@ public class PromotionCommentService {
         var comment = new PromotionCommentEntity();
         comment.setPromotion(promotion);
         comment.setClientId(user.subject());
-        comment.setAuthorName(request.authorName());
+        comment.setAuthorName(resolveDisplayName(user));
         comment.setContent(request.content());
         comment.setRemoved(false);
         comment.setCreatedAt(now);
@@ -79,7 +79,7 @@ public class PromotionCommentService {
         reply.setPromotion(promotion);
         reply.setParent(parent);
         reply.setClientId(user.subject());
-        reply.setAuthorName(request.authorName());
+        reply.setAuthorName(resolveDisplayName(user));
         reply.setContent(request.content());
         reply.setRemoved(false);
         reply.setCreatedAt(now);
@@ -112,6 +112,12 @@ public class PromotionCommentService {
         moderationLogRepository.persist(log);
 
         return PromotionCommentResponse.from(comment);
+    }
+
+    private String resolveDisplayName(br.com.descontovivo.shared.security.CurrentUser user) {
+        if (user.name() != null && !user.name().isBlank()) return user.name();
+        if (user.username() != null && !user.username().isBlank()) return user.username();
+        return "Usuário";
     }
 
     private br.com.descontovivo.promotion.entity.PromotionEntity findPublished(String slug) {
