@@ -27,6 +27,22 @@
 - Entregue por: opcional.
 - Busca automática de imagem por crawler/robô está fora do MVP.
 
+## Resolução de loja
+
+- A loja é identificada automaticamente pela API sempre que possível.
+- Prioridade de resolução:
+    1. `storeName` informado pelo admin/moderador (nome legível, slug gerado internamente).
+    2. `storeSlug` informado (compatibilidade).
+    3. Inferência automática pelo domínio da URL do produto.
+    4. Fallback: "Loja não identificada".
+- O slug da loja é gerado a partir do nome (normalizado, sem acentos, lowercase, hífens).
+- A UI/admin deve preferir `storeName` sobre `storeSlug`.
+- Se `storeName` for "Loja não identificada" ou equivalente, é ignorado.
+- Espaços em branco no início/fim de `storeName` são removidos automaticamente.
+- A API mantém um mapa de domínios conhecidos (Amazon, Pague Menos, Magazine Luiza, etc.) para inferência.
+- Para domínios não mapeados, a API gera um nome amigável a partir do domínio (capitalizado).
+- Lojas são criadas automaticamente quando um nome novo é informado ou inferido.
+
 ## Duplicidade de promoção
 
 - É permitido republicar uma promoção com o mesmo link em outro dia.

@@ -14,5 +14,6 @@ public record PromotionCreateRequest(
         BigDecimal originalPrice,
         @Size(max = 80) String couponCode,
         @NotBlank @Size(max = 200) String imageKey,
-        @Size(max = 120) String storeSlug
+        @Size(max = 120) String storeSlug,
+        @Size(max = 100) String storeName
 ) {}

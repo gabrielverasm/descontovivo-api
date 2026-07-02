@@ -108,7 +108,14 @@ Request mínimo:
 | imageKey      | sim         | max 200 chars; deve começar com `temp/promotions/`            |
 | originalPrice | não         | preço anterior (riscado)                                      |
 | couponCode    | não         | max 80 chars                                                  |
-| storeSlug     | não         | se omitido, infere pela URL ou usa "loja-nao-identificada"    |
+| storeName     | não         | max 100 chars; nome da loja (preferido sobre storeSlug)       |
+| storeSlug     | não         | max 120 chars; compatibilidade; se omitido, infere pela URL   |
+
+> **Resolução de loja (prioridade):**
+> 1. `storeName` — se informado, cria/associa loja pelo nome (slug gerado internamente).
+> 2. `storeSlug` — busca loja existente pelo slug (retorna 404 se não encontrada).
+> 3. Inferência por URL — extrai domínio da URL e identifica loja automaticamente.
+> 4. Fallback — usa "Loja não identificada" se nenhuma opção acima funcionar.
 
 Resposta: `201` com `PromotionDetailResponse`. Status inicial: `PENDING_REVIEW`.
 
@@ -382,6 +389,25 @@ Para trocar a imagem da promoção, envie `imageKey` com a chave temporária ger
 > - Se nenhum campo de imagem vier: mantém imagem atual inalterada.
 > - Imagens finais sempre residem no R2 (`promotions/...`).
 > - A imagem antiga só é removida **após** a nova ser promovida e persistida com sucesso.
+
+#### Troca de loja na edição
+
+Para alterar a loja da promoção, envie `storeName` com o nome da loja:
+
+```json
+{ "action": "EDIT", "reason": "Corrigir loja", "storeName": "Pague Menos" }
+```
+
+| Campo      | Obrigatório | Regras                                                        |
+|------------|-------------|---------------------------------------------------------------|
+| storeName  | não         | max 100 chars; cria loja se não existir (slug gerado internamente) |
+| storeSlug  | não         | max 120 chars; compatibilidade; `storeName` tem prioridade    |
+
+> **Comportamento:**
+> - Se `storeName` vier preenchido: encontra ou cria a loja pelo nome. O slug é gerado automaticamente.
+> - Se apenas `storeSlug` vier: busca loja existente pelo slug (retorna 404 se não encontrada).
+> - Se `storeName` for "Loja não identificada" ou equivalente: é ignorado (não cria loja com esse nome).
+> - Se nenhum campo de loja vier: mantém loja atual inalterada.
 
 ### PATCH /moderation/comments/{id}
 

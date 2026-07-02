@@ -11,6 +11,7 @@ import br.com.descontovivo.promotion.repository.PromotionRepository;
 import br.com.descontovivo.promotion.support.PromotionNormalizer;
 import br.com.descontovivo.shared.security.CurrentUserProvider;
 import br.com.descontovivo.store.repository.StoreRepository;
+import br.com.descontovivo.store.service.StoreResolver;
 import br.com.descontovivo.upload.service.R2StorageService;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -28,6 +29,7 @@ public class PromotionModerationService {
     private final PromotionRepository promotionRepository;
     private final ModerationLogRepository moderationLogRepository;
     private final StoreRepository storeRepository;
+    private final StoreResolver storeResolver;
     private final CurrentUserProvider currentUserProvider;
     private final R2StorageService r2StorageService;
     private final SecurityIdentity securityIdentity;
@@ -35,12 +37,14 @@ public class PromotionModerationService {
     public PromotionModerationService(PromotionRepository promotionRepository,
                                       ModerationLogRepository moderationLogRepository,
                                       StoreRepository storeRepository,
+                                      StoreResolver storeResolver,
                                       CurrentUserProvider currentUserProvider,
                                       R2StorageService r2StorageService,
                                       SecurityIdentity securityIdentity) {
         this.promotionRepository = promotionRepository;
         this.moderationLogRepository = moderationLogRepository;
         this.storeRepository = storeRepository;
+        this.storeResolver = storeResolver;
         this.currentUserProvider = currentUserProvider;
         this.r2StorageService = r2StorageService;
         this.securityIdentity = securityIdentity;
@@ -112,11 +116,16 @@ public class PromotionModerationService {
         if (req.couponCode() != null) entity.setCouponCode(req.couponCode());
         updateImageIfRequested(entity, req);
         if (req.availability() != null) entity.setAvailability(OfferAvailability.valueOf(req.availability()));
-        if (req.storeSlug() != null) {
+
+        // storeName takes priority over storeSlug
+        if (req.storeName() != null && !req.storeName().isBlank()) {
+            entity.setStore(storeResolver.findOrCreateByName(req.storeName()));
+        } else if (req.storeSlug() != null) {
             var store = storeRepository.findBySlug(req.storeSlug())
                     .orElseThrow(() -> new NotFoundException("Store not found: " + req.storeSlug()));
             entity.setStore(store);
         }
+
         if (req.soldBy() != null) entity.setSoldBy(req.soldBy());
         if (req.deliveredBy() != null) entity.setDeliveredBy(req.deliveredBy());
         if (req.category() != null) entity.setCategory(req.category());

@@ -12,43 +12,32 @@ import br.com.descontovivo.promotion.support.SlugGenerator;
 import br.com.descontovivo.shared.api.ConflictException;
 import br.com.descontovivo.shared.security.CurrentUserProvider;
 import br.com.descontovivo.store.entity.StoreEntity;
-import br.com.descontovivo.store.repository.StoreRepository;
+import br.com.descontovivo.store.service.StoreResolver;
 import br.com.descontovivo.upload.service.R2StorageService;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
-import jakarta.ws.rs.NotFoundException;
 
-import java.net.URI;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 @ApplicationScoped
 public class PromotionService {
 
     private static final ZoneId SAO_PAULO = ZoneId.of("America/Sao_Paulo");
-    private static final String FALLBACK_STORE_SLUG = "loja-nao-identificada";
-
-    private static final Map<String, String> DOMAIN_TO_STORE_SLUG = Map.of(
-            "amazon.com.br", "amazon",
-            "mercadolivre.com.br", "mercado-livre",
-            "magazineluiza.com.br", "magalu"
-    );
 
     private final PromotionRepository promotionRepository;
-    private final StoreRepository storeRepository;
+    private final StoreResolver storeResolver;
     private final CurrentUserProvider currentUserProvider;
     private final R2StorageService r2StorageService;
 
     public PromotionService(PromotionRepository promotionRepository,
-                            StoreRepository storeRepository,
+                            StoreResolver storeResolver,
                             CurrentUserProvider currentUserProvider,
                             R2StorageService r2StorageService) {
         this.promotionRepository = promotionRepository;
-        this.storeRepository = storeRepository;
+        this.storeResolver = storeResolver;
         this.currentUserProvider = currentUserProvider;
         this.r2StorageService = r2StorageService;
     }
@@ -66,7 +55,7 @@ public class PromotionService {
     @Transactional
     public PromotionDetailResponse findPublishedBySlug(String slug) {
         var entity = promotionRepository.findPublishedBySlug(slug)
-                .orElseThrow(() -> new NotFoundException("Promotion not found: " + slug));
+                .orElseThrow(() -> new jakarta.ws.rs.NotFoundException("Promotion not found: " + slug));
         return PromotionDetailResponse.from(entity);
     }
 
@@ -74,7 +63,7 @@ public class PromotionService {
     public PromotionDetailResponse create(PromotionCreateRequest request) {
         var user = currentUserProvider.requireVerifiedUser();
 
-        StoreEntity store = resolveStore(request.storeSlug(), request.url());
+        StoreEntity store = storeResolver.resolve(request.storeName(), request.storeSlug(), request.url());
 
         String normalizedUrl = PromotionNormalizer.normalizeUrl(request.url());
         LocalDate today = LocalDate.now(SAO_PAULO);
@@ -111,34 +100,5 @@ public class PromotionService {
 
         promotionRepository.persist(entity);
         return PromotionDetailResponse.from(entity);
-    }
-
-    private StoreEntity resolveStore(String storeSlug, String url) {
-        if (storeSlug != null && !storeSlug.isBlank()) {
-            return storeRepository.findBySlug(storeSlug)
-                    .orElseThrow(() -> new NotFoundException("Store not found: " + storeSlug));
-        }
-
-        Optional<StoreEntity> inferred = inferStoreFromUrl(url);
-        if (inferred.isPresent()) {
-            return inferred.get();
-        }
-
-        return storeRepository.findBySlug(FALLBACK_STORE_SLUG)
-                .orElseThrow(() -> new IllegalStateException("Fallback store not found"));
-    }
-
-    private Optional<StoreEntity> inferStoreFromUrl(String url) {
-        try {
-            String host = URI.create(url).getHost();
-            if (host == null) return Optional.empty();
-            host = host.toLowerCase().replaceFirst("^www\\.", "");
-            String slug = DOMAIN_TO_STORE_SLUG.get(host);
-            if (slug != null) {
-                return storeRepository.findBySlug(slug);
-            }
-        } catch (Exception ignored) {
-        }
-        return Optional.empty();
     }
 }
