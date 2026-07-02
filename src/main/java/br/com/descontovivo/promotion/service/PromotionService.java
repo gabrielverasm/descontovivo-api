@@ -112,6 +112,7 @@ public class PromotionService {
         entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
         entity.setPublishAt(now);
+        entity.setAuthorUsername(user.username());
 
         promotionRepository.persist(entity);
         return PromotionDetailResponse.from(entity);

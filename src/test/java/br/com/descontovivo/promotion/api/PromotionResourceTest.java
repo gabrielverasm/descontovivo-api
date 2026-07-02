@@ -179,6 +179,7 @@ class PromotionResourceTest {
             .body("slug", notNullValue())
             .body("id", notNullValue())
             .body("store.slug", is("amazon"))
+            .body("authorUsername", is("user-verified"))
             .body("imageUrl", startsWith("https://img.descontovivo.com.br/promotions/"))
             .body("imageUrl", not(containsString("temp/promotions")));
     }

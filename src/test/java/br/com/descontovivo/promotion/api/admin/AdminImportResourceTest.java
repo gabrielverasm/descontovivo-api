@@ -675,6 +675,85 @@ class AdminImportResourceTest {
             .body("batchId", startsWith("import-"));
     }
 
+    // --- authorUsername tests ---
+
+    @Test
+    @TestSecurity(user = "some-principal-id", roles = {"admin"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "some-principal-id"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "admin-user")
+    })
+    void shouldSetAuthorUsernameFromAuthenticatedAdmin() {
+        var sourceId = "author-admin-" + uid();
+        var title = "Author Admin Test " + sourceId;
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                  "items": [{
+                    "sourceId": "%s",
+                    "title": "%s",
+                    "description": "Author attribution test",
+                    "marketplace": "AMAZON",
+                    "storeName": "Amazon",
+                    "productUrl": "https://example.com/author-admin-%s",
+                    "imageUrl": "https://images.example.com/author.jpg",
+                    "currentPrice": 99.90
+                  }]
+                }
+            """.formatted(sourceId, title, sourceId))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("created", is(1));
+
+        var slug = SlugGenerator.fromTitle(title);
+        given()
+            .when().get("/api/v1/promotions/" + slug)
+            .then()
+            .statusCode(200)
+            // deve ser preferred_username, não o principal name "some-principal-id"
+            .body("authorUsername", is("admin-user"))
+            .body("authorUsername", not("some-principal-id"));
+    }
+
+    @Test
+    void shouldSetAuthorUsernameToDefaultWhenAccessedViaToken() {
+        var sourceId = "author-token-" + uid();
+        var title = "Author Token Test " + sourceId;
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .body("""
+                {
+                  "items": [{
+                    "sourceId": "%s",
+                    "title": "%s",
+                    "description": "Token author attribution test",
+                    "marketplace": "AMAZON",
+                    "storeName": "Amazon",
+                    "productUrl": "https://example.com/author-token-%s",
+                    "imageUrl": "https://images.example.com/token.jpg",
+                    "currentPrice": 149.90
+                  }]
+                }
+            """.formatted(sourceId, title, sourceId))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("created", is(1));
+
+        var slug = SlugGenerator.fromTitle(title);
+        given()
+            .when().get("/api/v1/promotions/" + slug)
+            .then()
+            .statusCode(200)
+            .body("authorUsername", is("gabrielveras"));
+    }
+
     // --- Helpers ---
 
     private static String uid() {

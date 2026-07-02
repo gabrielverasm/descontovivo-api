@@ -50,15 +50,15 @@ public class AdminImportService {
     }
 
     @Transactional
-    public AdminImportResponse executePersistent(AdminImportRequest request) {
-        return execute(request, false);
+    public AdminImportResponse executePersistent(AdminImportRequest request, String callerUsername) {
+        return execute(request, false, callerUsername);
     }
 
-    public AdminImportResponse executeDryRun(AdminImportRequest request) {
-        return execute(request, true);
+    public AdminImportResponse executeDryRun(AdminImportRequest request, String callerUsername) {
+        return execute(request, true, callerUsername);
     }
 
-    private AdminImportResponse execute(AdminImportRequest request, boolean dryRun) {
+    private AdminImportResponse execute(AdminImportRequest request, boolean dryRun, String callerUsername) {
         String batchId = request.batchId() != null && !request.batchId().isBlank()
                 ? request.batchId()
                 : "import-" + UUID.randomUUID().toString().substring(0, 12);
@@ -114,7 +114,7 @@ public class AdminImportService {
                     errors.add(new AdminImportError(item.sourceId(), "imageUrl", e.getMessage()));
                     continue;
                 }
-                persist(item, batchId, importStartedAt, normalizedUrl, importedImage);
+                persist(item, batchId, importStartedAt, normalizedUrl, importedImage, callerUsername);
             } else {
                 // Dry run: validate URL format and host only
                 try {
@@ -130,7 +130,7 @@ public class AdminImportService {
         return new AdminImportResponse(batchId, dryRun, created, skipped, errors);
     }
 
-    private void persist(AdminImportItemRequest item, String batchId, OffsetDateTime importStartedAt, String normalizedUrl, ImportedImage importedImage) {
+    private void persist(AdminImportItemRequest item, String batchId, OffsetDateTime importStartedAt, String normalizedUrl, ImportedImage importedImage, String callerUsername) {
         var store = findOrCreateStore(item.storeName());
 
         String slug = generateUniqueSlug(item.title());
@@ -162,7 +162,7 @@ public class AdminImportService {
         entity.setSource(SOURCE);
         entity.setSourceId(item.sourceId());
         entity.setBatchId(batchId);
-        entity.setAuthorUsername(defaultAuthor);
+        entity.setAuthorUsername(callerUsername != null && !callerUsername.isBlank() ? callerUsername : defaultAuthor);
         entity.setMarketplace(item.marketplace());
         entity.setSellerName(item.sellerName());
         entity.setSoldBy(item.soldBy());
