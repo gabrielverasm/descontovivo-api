@@ -10,8 +10,7 @@ import br.com.descontovivo.promotion.entity.PromotionStatus;
 import br.com.descontovivo.promotion.repository.PromotionRepository;
 import br.com.descontovivo.promotion.support.PromotionNormalizer;
 import br.com.descontovivo.promotion.support.SlugGenerator;
-import br.com.descontovivo.store.entity.StoreEntity;
-import br.com.descontovivo.store.repository.StoreRepository;
+import br.com.descontovivo.store.service.StoreResolver;
 import br.com.descontovivo.upload.service.RemoteImageImportService;
 import br.com.descontovivo.upload.service.RemoteImageImportService.ImportedImage;
 import br.com.descontovivo.upload.service.RemoteImageImportService.RemoteImageException;
@@ -22,7 +21,6 @@ import org.jboss.logging.Logger;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.*;
@@ -35,17 +33,17 @@ public class AdminImportService {
     private static final ZoneId SAO_PAULO = ZoneId.of("America/Sao_Paulo");
 
     private final PromotionRepository promotionRepository;
-    private final StoreRepository storeRepository;
+    private final StoreResolver storeResolver;
     private final RemoteImageImportService remoteImageImportService;
 
     @ConfigProperty(name = "admin.import.default-author", defaultValue = "gabrielveras")
     String defaultAuthor;
 
     public AdminImportService(PromotionRepository promotionRepository,
-                              StoreRepository storeRepository,
+                              StoreResolver storeResolver,
                               RemoteImageImportService remoteImageImportService) {
         this.promotionRepository = promotionRepository;
-        this.storeRepository = storeRepository;
+        this.storeResolver = storeResolver;
         this.remoteImageImportService = remoteImageImportService;
     }
 
@@ -131,7 +129,7 @@ public class AdminImportService {
     }
 
     private void persist(AdminImportItemRequest item, String batchId, OffsetDateTime importStartedAt, String normalizedUrl, ImportedImage importedImage, String callerUsername) {
-        var store = findOrCreateStore(item.storeName());
+        var store = storeResolver.findOrCreateByName(item.storeName());
 
         String slug = generateUniqueSlug(item.title());
         var now = OffsetDateTime.now();
@@ -168,19 +166,6 @@ public class AdminImportService {
         entity.setCategory(item.category());
 
         promotionRepository.persist(entity);
-    }
-
-    private StoreEntity findOrCreateStore(String storeName) {
-        String slug = SlugGenerator.fromTitle(storeName);
-        Optional<StoreEntity> existing = storeRepository.findBySlug(slug);
-        if (existing.isPresent()) return existing.get();
-
-        var store = new StoreEntity();
-        store.setName(storeName);
-        store.setSlug(slug);
-        store.setCreatedAt(LocalDateTime.now());
-        storeRepository.persist(store);
-        return store;
     }
 
     private String generateUniqueSlug(String title) {

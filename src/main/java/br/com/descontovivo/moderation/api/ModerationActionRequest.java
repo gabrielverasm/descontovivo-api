@@ -18,6 +18,7 @@ public record ModerationActionRequest(
         @Size(max = 200) String imageKey,
         @Size(max = 30) String availability,
         @Size(max = 120) String storeSlug,
+        @Size(max = 100) String storeName,
         @Size(max = 100) String soldBy,
         @Size(max = 100) String deliveredBy,
         @Size(max = 50) String category

@@ -236,7 +236,8 @@ class PromotionResourceTest {
             .when().post("/api/v1/promotions")
             .then()
             .statusCode(201)
-            .body("store.slug", is("loja-nao-identificada"));
+            .body("store.name", is("Lojadesconhecida"))
+            .body("store.slug", is("lojadesconhecida"));
     }
 
     @Test
@@ -421,5 +422,197 @@ class PromotionResourceTest {
             """)
             .when().post("/api/v1/promotions")
             .then().statusCode(422);
+    }
+
+    @Test
+    @TestSecurity(user = "user-verified", roles = "user")
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "user-verified-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "user@test.local"),
+        @Claim(key = "preferred_username", value = "user-verified")
+    })
+    void shouldInferPagueMenosFromUrl() {
+        var uid = UUID.randomUUID().toString().substring(0, 8);
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "title": "Pague Menos Test %s",
+                    "url": "https://www.paguemenos.com.br/produto-%s",
+                    "currentPrice": 25.00,
+                    "imageKey": "temp/promotions/2026/07/pm-%s.webp"
+                }
+            """.formatted(uid, uid, uid))
+            .when().post("/api/v1/promotions")
+            .then()
+            .statusCode(201)
+            .body("store.name", is("Pague Menos"))
+            .body("store.slug", is("pague-menos"));
+    }
+
+    @Test
+    @TestSecurity(user = "user-verified", roles = "user")
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "user-verified-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "user@test.local"),
+        @Claim(key = "preferred_username", value = "user-verified")
+    })
+    void shouldInferAmazonFromUrl() {
+        var uid = UUID.randomUUID().toString().substring(0, 8);
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "title": "Amazon Inference %s",
+                    "url": "https://www.amazon.com.br/dp/%s",
+                    "currentPrice": 199.00,
+                    "imageKey": "temp/promotions/2026/07/amz-%s.webp"
+                }
+            """.formatted(uid, uid, uid))
+            .when().post("/api/v1/promotions")
+            .then()
+            .statusCode(201)
+            .body("store.name", is("Amazon"));
+    }
+
+    @Test
+    @TestSecurity(user = "user-verified", roles = "user")
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "user-verified-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "user@test.local"),
+        @Claim(key = "preferred_username", value = "user-verified")
+    })
+    void shouldAcceptStoreNameInCreateRequest() {
+        var uid = UUID.randomUUID().toString().substring(0, 8);
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "title": "StoreName Test %s",
+                    "url": "https://www.lojax.com.br/item-%s",
+                    "currentPrice": 30.00,
+                    "imageKey": "temp/promotions/2026/07/sn-%s.webp",
+                    "storeName": "Loja X Oficial"
+                }
+            """.formatted(uid, uid, uid))
+            .when().post("/api/v1/promotions")
+            .then()
+            .statusCode(201)
+            .body("store.name", is("Loja X Oficial"))
+            .body("store.slug", is("loja-x-oficial"));
+    }
+
+    @Test
+    @TestSecurity(user = "user-verified", roles = "user")
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "user-verified-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "user@test.local"),
+        @Claim(key = "preferred_username", value = "user-verified")
+    })
+    void shouldFallbackWhenUrlHasNoHost() {
+        var uid = UUID.randomUUID().toString().substring(0, 8);
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "title": "No Host Test %s",
+                    "url": "file:///local/path-%s",
+                    "currentPrice": 10.00,
+                    "imageKey": "temp/promotions/2026/07/nh-%s.webp"
+                }
+            """.formatted(uid, uid, uid))
+            .when().post("/api/v1/promotions")
+            .then()
+            .statusCode(201)
+            .body("store.slug", is("loja-nao-identificada"));
+    }
+
+    @Test
+    @TestSecurity(user = "user-verified", roles = "user")
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "user-verified-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "user@test.local"),
+        @Claim(key = "preferred_username", value = "user-verified")
+    })
+    void shouldTrimStoreNameBeforeSaving() {
+        var uid = UUID.randomUUID().toString().substring(0, 8);
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "title": "Trim Test %s",
+                    "url": "https://www.example.com/trim-%s",
+                    "currentPrice": 20.00,
+                    "imageKey": "temp/promotions/2026/07/trim-%s.webp",
+                    "storeName": "  Pague Menos  "
+                }
+            """.formatted(uid, uid, uid))
+            .when().post("/api/v1/promotions")
+            .then()
+            .statusCode(201)
+            .body("store.name", is("Pague Menos"))
+            .body("store.slug", is("pague-menos"));
+    }
+
+    @Test
+    @TestSecurity(user = "user-verified", roles = "user")
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "user-verified-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "user@test.local"),
+        @Claim(key = "preferred_username", value = "user-verified")
+    })
+    void shouldIgnoreFallbackStoreNameAndInferFromUrl() {
+        var uid = UUID.randomUUID().toString().substring(0, 8);
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "title": "Fallback Ignored %s",
+                    "url": "https://www.paguemenos.com.br/fallback-%s",
+                    "currentPrice": 15.00,
+                    "imageKey": "temp/promotions/2026/07/fi-%s.webp",
+                    "storeName": "Loja não identificada"
+                }
+            """.formatted(uid, uid, uid))
+            .when().post("/api/v1/promotions")
+            .then()
+            .statusCode(201)
+            .body("store.name", is("Pague Menos"))
+            .body("store.slug", is("pague-menos"));
+    }
+
+    @Test
+    @TestSecurity(user = "user-verified", roles = "user")
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "user-verified-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "user@test.local"),
+        @Claim(key = "preferred_username", value = "user-verified")
+    })
+    void shouldPreferStoreNameOverStoreSlugInCreate() {
+        var uid = UUID.randomUUID().toString().substring(0, 8);
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "title": "Priority Test %s",
+                    "url": "https://www.example.com/prio-%s",
+                    "currentPrice": 50.00,
+                    "imageKey": "temp/promotions/2026/07/prio-%s.webp",
+                    "storeName": "Fast Shop",
+                    "storeSlug": "amazon"
+                }
+            """.formatted(uid, uid, uid))
+            .when().post("/api/v1/promotions")
+            .then()
+            .statusCode(201)
+            .body("store.name", is("Fast Shop"))
+            .body("store.slug", is("fast-shop"));
     }
 }

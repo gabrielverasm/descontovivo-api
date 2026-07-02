@@ -504,6 +504,59 @@ class ModerationResourceTest {
         assertFalse(body.contains("normalizedUrl"), "Should not expose normalizedUrl");
     }
 
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldEditStoreViaStoreNameInModeration() {
+        var id = createPromotion();
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "action": "EDIT",
+                    "reason": "Corrigir loja",
+                    "storeName": "Pague Menos"
+                }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(200)
+            .body("store.name", is("Pague Menos"))
+            .body("store.slug", is("pague-menos"));
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldPreferStoreNameOverStoreSlugInModeration() {
+        var id = createPromotion();
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "action": "EDIT",
+                    "reason": "Corrigir loja por nome",
+                    "storeName": "Fast Shop",
+                    "storeSlug": "amazon"
+                }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(200)
+            .body("store.name", is("Fast Shop"))
+            .body("store.slug", is("fast-shop"));
+    }
+
     private String createPromotion() {
         var uid = UUID.randomUUID().toString().substring(0, 8);
         return given()
