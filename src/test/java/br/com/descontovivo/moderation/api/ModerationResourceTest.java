@@ -82,7 +82,8 @@ class ModerationResourceTest {
             .then()
             .statusCode(200)
             .body("status", is("PUBLISHED"))
-            .body("publishedAt", notNullValue());
+            .body("publishedAt", notNullValue())
+            .body("authorUsername", is("admin-user"));
     }
 
     @Test

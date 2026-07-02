@@ -2,6 +2,7 @@ package br.com.descontovivo.promotion.api.admin;
 
 import br.com.descontovivo.promotion.service.AdminImportService;
 import br.com.descontovivo.shared.security.AdminImportTokenValidator;
+import br.com.descontovivo.shared.security.CurrentUserProvider;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.annotation.security.PermitAll;
 import jakarta.validation.Valid;
@@ -20,13 +21,16 @@ public class AdminImportResource {
     private final AdminImportService importService;
     private final AdminImportTokenValidator tokenValidator;
     private final SecurityIdentity identity;
+    private final CurrentUserProvider currentUserProvider;
 
     public AdminImportResource(AdminImportService importService,
                                AdminImportTokenValidator tokenValidator,
-                               SecurityIdentity identity) {
+                               SecurityIdentity identity,
+                               CurrentUserProvider currentUserProvider) {
         this.importService = importService;
         this.tokenValidator = tokenValidator;
         this.identity = identity;
+        this.currentUserProvider = currentUserProvider;
     }
 
     @POST
@@ -39,9 +43,22 @@ public class AdminImportResource {
         boolean hasAdminRole = identity != null && identity.hasRole("admin");
         tokenValidator.requireAdminAccess(hasAdminRole, headerToken);
 
+        String callerUsername = null;
+        if (hasAdminRole) {
+            try {
+                var user = currentUserProvider.currentUser();
+                String username = user.username();
+                if (username != null && !username.isBlank()) {
+                    callerUsername = username;
+                }
+            } catch (Exception ignored) {
+                // sem usuário OIDC resolvível — cai no defaultAuthor
+            }
+        }
+
         AdminImportResponse response = dryRun
-                ? importService.executeDryRun(request)
-                : importService.executePersistent(request);
+                ? importService.executeDryRun(request, callerUsername)
+                : importService.executePersistent(request, callerUsername);
 
         return Response.ok(response).build();
     }
