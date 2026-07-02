@@ -17,19 +17,20 @@
 
 - Título: obrigatório.
 - Link (URL): obrigatório.
-- Descrição: obrigatória.
 - Loja: obrigatória.
 - Categoria: opcional no MVP.
 - Preço atual: obrigatório.
 - Preço original: opcional.
 - Cupom: opcional.
 - Imagem: obrigatória no MVP.
+- Vendido por: opcional.
+- Entregue por: opcional.
 - Busca automática de imagem por crawler/robô está fora do MVP.
 
 ## Duplicidade de promoção
 
 - É permitido republicar uma promoção com o mesmo link em outro dia.
-- Não é permitido publicar a mesma promoção, com mesmo link normalizado e descrição normalizada, no mesmo dia.
+- Não é permitido publicar a mesma promoção, com mesmo link normalizado (URL), no mesmo dia.
 - A comparação de "mesmo dia" deve considerar o fuso horário oficial da aplicação (America/Sao_Paulo).
 
 ### Normalização de URL
@@ -37,12 +38,6 @@
 - Remove parâmetros de tracking (utm_*, fbclid, gclid, etc.).
 - Remove barra final.
 - Normaliza domínio para minúsculo.
-
-### Normalização de descrição
-
-- Ignora caixa (case-insensitive).
-- Remove acentos.
-- Colapsa espaços duplicados em espaço único.
 
 ## Slug
 

@@ -200,13 +200,12 @@ class PromotionResourceTest {
                 {
                     "title": "Auth Test %s",
                     "url": "https://www.example.com/auth-%s",
-                    "description": "Auth test %s",
                     "currentPrice": 199.00,
                     "originalPrice": 399.00,
                     "imageKey": "temp/promotions/2026/06/auth-%s.webp",
                     "storeSlug": "magalu"
                 }
-            """.formatted(uid, uid, uid, uid))
+            """.formatted(uid, uid, uid))
             .when().post("/api/v1/promotions")
             .then()
             .statusCode(201)

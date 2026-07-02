@@ -143,8 +143,6 @@ public class AdminImportService {
         entity.setTitle(item.title());
         entity.setUrl(item.productUrl());
         entity.setNormalizedUrl(normalizedUrl);
-        entity.setDescription(item.description());
-        entity.setNormalizedDescription(PromotionNormalizer.normalizeDescription(item.description()));
         entity.setCurrentPrice(item.currentPrice());
         entity.setOriginalPrice(item.originalPrice());
         entity.setCouponCode(item.coupon());
@@ -200,7 +198,6 @@ public class AdminImportService {
         var errors = new ArrayList<AdminImportError>();
         if (isBlank(item.sourceId())) errors.add(new AdminImportError(item.sourceId(), "sourceId", "sourceId obrigatório"));
         if (isBlank(item.title())) errors.add(new AdminImportError(item.sourceId(), "title", "title obrigatório"));
-        if (isBlank(item.description())) errors.add(new AdminImportError(item.sourceId(), "description", "description obrigatório"));
         if (isBlank(item.productUrl())) errors.add(new AdminImportError(item.sourceId(), "productUrl", "productUrl obrigatório"));
         if (isBlank(item.imageUrl())) errors.add(new AdminImportError(item.sourceId(), "imageUrl", "imageUrl obrigatório"));
         if (isBlank(item.storeName())) errors.add(new AdminImportError(item.sourceId(), "storeName", "storeName obrigatório"));

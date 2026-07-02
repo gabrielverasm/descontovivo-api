@@ -4,7 +4,6 @@
     {
       "sourceId": "<marketplace>-<produto-slug>-<data>",
       "title": "<Título do produto>",
-      "description": "<Descrição editorial. Mencionar vendedor, frete, prazo.>",
       "marketplace": "<AMAZON|MAGALU|MERCADOLIVRE|KABUM|ALIEXPRESS>",
       "storeName": "<Nome da Loja>",
       "sellerName": "<Vendedor responsável>",
@@ -22,7 +21,6 @@
     {
       "sourceId": "<marketplace>-<produto-slug>-<data>-2",
       "title": "<Segundo produto>",
-      "description": "<Descrição do segundo item>",
       "marketplace": "<MARKETPLACE>",
       "storeName": "<Nome da Loja>",
       "sellerName": null,

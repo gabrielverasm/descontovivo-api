@@ -502,7 +502,6 @@ class ModerationResourceTest {
         assertFalse(body.contains("sellerName"), "Should not expose sellerName");
         assertFalse(body.contains("imageKey"), "Should not expose imageKey");
         assertFalse(body.contains("normalizedUrl"), "Should not expose normalizedUrl");
-        assertFalse(body.contains("normalizedDescription"), "Should not expose normalizedDescription");
     }
 
     private String createPromotion() {
@@ -513,13 +512,12 @@ class ModerationResourceTest {
                 {
                     "title": "Mod Test %s",
                     "url": "https://www.amazon.com.br/mod-%s",
-                    "description": "Moderation test %s",
                     "currentPrice": 100.00,
                     "imageUrl": "https://images.example.com/mod.jpg",
                     "imageKey": "temp/promotions/2026/06/mod-%s.webp",
                     "storeSlug": "amazon"
                 }
-            """.formatted(uid, uid, uid, uid))
+            """.formatted(uid, uid, uid))
             .when().post("/api/v1/promotions")
             .then().statusCode(201)
             .extract().jsonPath().getString("id");

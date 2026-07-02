@@ -107,10 +107,6 @@ public class PromotionModerationService {
             entity.setUrl(req.url());
             entity.setNormalizedUrl(PromotionNormalizer.normalizeUrl(req.url()));
         }
-        if (req.description() != null) {
-            entity.setDescription(req.description());
-            entity.setNormalizedDescription(PromotionNormalizer.normalizeDescription(req.description()));
-        }
         if (req.currentPrice() != null) entity.setCurrentPrice(req.currentPrice());
         if (req.originalPrice() != null) entity.setOriginalPrice(req.originalPrice());
         if (req.couponCode() != null) entity.setCouponCode(req.couponCode());

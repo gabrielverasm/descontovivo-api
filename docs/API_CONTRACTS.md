@@ -26,7 +26,7 @@ Base path:
 | page        | int    | não         | Página atual (default: 0)                                                      |
 | size        | int    | não         | Itens por página (default: 20, max: 100)                                       |
 | store       | string | não         | Filtrar por slug da loja                                                       |
-| q           | string | não         | Busca textual no título/descrição                                              |
+| q           | string | não         | Busca textual no título                                                    |
 | availability| string | não         | `AVAILABLE`, `EXPIRED`, `UNAVAILABLE`, `UNKNOWN`                               |
 | sort        | string | não         | ⏳ *Futuro.* Ordenação: `recent`, `popular`, `commented`                       |
 | category    | string | não         | ⏳ *Futuro.* Filtrar por slug da categoria                                     |
@@ -106,7 +106,6 @@ Request mínimo:
 | url           | sim         | max 2048 chars                                                |
 | currentPrice  | sim         | > 0                                                           |
 | imageKey      | sim         | max 200 chars; deve começar com `temp/promotions/`            |
-| description   | não         | max 2000 chars; se omitido, usa title como fallback           |
 | originalPrice | não         | preço anterior (riscado)                                      |
 | couponCode    | não         | max 80 chars                                                  |
 | storeSlug     | não         | se omitido, infere pela URL ou usa "loja-nao-identificada"    |
@@ -200,7 +199,6 @@ Request body:
     {
       "sourceId": "<identificador-unico>",
       "title": "<titulo>",
-      "description": "<descricao>",
       "marketplace": "<MARKETPLACE>",
       "storeName": "<nome-loja>",
       "sellerName": "<vendedor>",
