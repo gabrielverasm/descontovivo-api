@@ -6,7 +6,6 @@ import java.time.OffsetDateTime;
 public record AdminImportItemRequest(
         String sourceId,
         String title,
-        String description,
         String marketplace,
         String storeName,
         String sellerName,

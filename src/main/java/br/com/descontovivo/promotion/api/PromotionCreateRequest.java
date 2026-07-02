@@ -10,7 +10,6 @@ import java.math.BigDecimal;
 public record PromotionCreateRequest(
         @NotBlank @Size(max = 180) String title,
         @NotBlank @Size(max = 2048) String url,
-        @Size(max = 2000) String description,
         @NotNull @DecimalMin("0.01") BigDecimal currentPrice,
         BigDecimal originalPrice,
         @Size(max = 80) String couponCode,

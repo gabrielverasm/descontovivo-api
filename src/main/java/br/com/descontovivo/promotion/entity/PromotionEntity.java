@@ -28,12 +28,6 @@ public class PromotionEntity {
     @Column(name = "normalized_url", nullable = false, columnDefinition = "TEXT")
     private String normalizedUrl;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String description;
-
-    @Column(name = "normalized_description", nullable = false, columnDefinition = "TEXT")
-    private String normalizedDescription;
-
     @Column(name = "current_price", nullable = false, precision = 12, scale = 2)
     private BigDecimal currentPrice;
 
@@ -131,10 +125,6 @@ public class PromotionEntity {
     public void setUrl(String url) { this.url = url; }
     public String getNormalizedUrl() { return normalizedUrl; }
     public void setNormalizedUrl(String normalizedUrl) { this.normalizedUrl = normalizedUrl; }
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
-    public String getNormalizedDescription() { return normalizedDescription; }
-    public void setNormalizedDescription(String normalizedDescription) { this.normalizedDescription = normalizedDescription; }
     public BigDecimal getCurrentPrice() { return currentPrice; }
     public void setCurrentPrice(BigDecimal currentPrice) { this.currentPrice = currentPrice; }
     public BigDecimal getOriginalPrice() { return originalPrice; }

@@ -11,7 +11,6 @@ public record ModerationActionRequest(
         @NotBlank @Size(max = 500) String reason,
         @Size(max = 180) String title,
         @Size(max = 2048) String url,
-        @Size(max = 2000) String description,
         BigDecimal currentPrice,
         BigDecimal originalPrice,
         @Size(max = 80) String couponCode,

@@ -11,7 +11,6 @@ public record PromotionDetailResponse(
         String slug,
         String title,
         String url,
-        String description,
         BigDecimal currentPrice,
         BigDecimal originalPrice,
         String couponCode,
@@ -31,7 +30,7 @@ public record PromotionDetailResponse(
 ) {
     public static PromotionDetailResponse from(PromotionEntity e) {
         return new PromotionDetailResponse(
-                e.getId(), e.getSlug(), e.getTitle(), e.getUrl(), e.getDescription(),
+                e.getId(), e.getSlug(), e.getTitle(), e.getUrl(),
                 e.getCurrentPrice(), e.getOriginalPrice(), e.getCouponCode(),
                 e.getImageUrl(), e.getStatus().name(), e.getAvailability().name(),
                 new PromotionSummaryResponse.StoreRef(e.getStore().getSlug(), e.getStore().getName()),

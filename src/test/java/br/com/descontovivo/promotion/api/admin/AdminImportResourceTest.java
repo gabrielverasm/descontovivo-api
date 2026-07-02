@@ -198,7 +198,6 @@ class AdminImportResourceTest {
                 {
                   "sourceId": "%s",
                   "title": "First item",
-                  "description": "First",
                   "marketplace": "AMAZON",
                   "storeName": "Amazon",
                   "productUrl": "https://example.com/first-%s",
@@ -208,7 +207,6 @@ class AdminImportResourceTest {
                 {
                   "sourceId": "%s",
                   "title": "Duplicate sourceId",
-                  "description": "Should be skipped",
                   "marketplace": "AMAZON",
                   "storeName": "Amazon",
                   "productUrl": "https://example.com/second-%s",
@@ -264,7 +262,6 @@ class AdminImportResourceTest {
                   "items": [{
                     "sourceId": "%s",
                     "title": "%s",
-                    "description": "Test R2 image",
                     "marketplace": "AMAZON",
                     "storeName": "Amazon",
                     "productUrl": "https://example.com/r2-url-%s",
@@ -302,7 +299,6 @@ class AdminImportResourceTest {
                   "items": [{
                     "sourceId": "%s",
                     "title": "%s",
-                    "description": "Must not save external URL",
                     "marketplace": "MAGALU",
                     "storeName": "Magazine Luiza",
                     "productUrl": "https://example.com/no-ext-%s",
@@ -357,7 +353,6 @@ class AdminImportResourceTest {
                   "items": [{
                     "sourceId": "%s",
                     "title": "SSRF test",
-                    "description": "Should block localhost",
                     "marketplace": "AMAZON",
                     "storeName": "Amazon",
                     "productUrl": "https://example.com/ssrf-%s",
@@ -387,7 +382,6 @@ class AdminImportResourceTest {
                   "items": [{
                     "sourceId": "%s",
                     "title": "SSRF IP test",
-                    "description": "Should block private IP",
                     "marketplace": "AMAZON",
                     "storeName": "Amazon",
                     "productUrl": "https://example.com/ssrf-ip-%s",
@@ -420,7 +414,6 @@ class AdminImportResourceTest {
                   "items": [{
                     "sourceId": "%s",
                     "title": "%s",
-                    "description": "Must not be saved",
                     "marketplace": "AMAZON",
                     "storeName": "Amazon",
                     "productUrl": "https://example.com/nopersist-%s",
@@ -502,7 +495,6 @@ class AdminImportResourceTest {
                   "items": [{
                     "sourceId": "%s",
                     "title": "%s",
-                    "description": "Future item for slug test",
                     "marketplace": "AMAZON",
                     "storeName": "Amazon",
                     "productUrl": "https://example.com/future-slug-%s",
@@ -559,7 +551,6 @@ class AdminImportResourceTest {
                   "items": [{
                     "sourceId": "err-item",
                     "title": "",
-                    "description": "",
                     "marketplace": "",
                     "storeName": "",
                     "productUrl": "",
@@ -586,7 +577,6 @@ class AdminImportResourceTest {
                   "items": [{
                     "sourceId": "price-err-%s",
                     "title": "Price Error Test",
-                    "description": "Original less than current",
                     "marketplace": "AMAZON",
                     "storeName": "Amazon",
                     "productUrl": "https://example.com/price-err-%s",
@@ -615,7 +605,6 @@ class AdminImportResourceTest {
                 {
                   "sourceId": "%s",
                   "title": "Same Title Item",
-                  "description": "First item",
                   "marketplace": "AMAZON",
                   "storeName": "Amazon",
                   "productUrl": "https://example.com/%s",
@@ -625,7 +614,6 @@ class AdminImportResourceTest {
                 {
                   "sourceId": "%s",
                   "title": "Same Title Item",
-                  "description": "Second item",
                   "marketplace": "AMAZON",
                   "storeName": "Amazon",
                   "productUrl": "https://example.com/%s",
@@ -660,7 +648,6 @@ class AdminImportResourceTest {
                   "items": [{
                     "sourceId": "auto-batch-%s",
                     "title": "Auto Batch",
-                    "description": "Test auto batch",
                     "marketplace": "AMAZON",
                     "storeName": "Amazon",
                     "productUrl": "https://example.com/auto-batch-%s",
@@ -695,7 +682,6 @@ class AdminImportResourceTest {
                   "items": [{
                     "sourceId": "%s",
                     "title": "%s",
-                    "description": "Author attribution test",
                     "marketplace": "AMAZON",
                     "storeName": "Amazon",
                     "productUrl": "https://example.com/author-admin-%s",
@@ -732,7 +718,6 @@ class AdminImportResourceTest {
                   "items": [{
                     "sourceId": "%s",
                     "title": "%s",
-                    "description": "Token author attribution test",
                     "marketplace": "AMAZON",
                     "storeName": "Amazon",
                     "productUrl": "https://example.com/author-token-%s",
@@ -767,7 +752,6 @@ class AdminImportResourceTest {
               "items": [{
                 "sourceId": "%s",
                 "title": "Test Import %s",
-                "description": "A valid import item",
                 "marketplace": "AMAZON",
                 "storeName": "Amazon",
                 "productUrl": "https://example.com/%s",
@@ -785,7 +769,6 @@ class AdminImportResourceTest {
               "items": [{
                 "sourceId": "%s",
                 "title": "No PublishAt %s",
-                "description": "Item without publishAt",
                 "marketplace": "AMAZON",
                 "storeName": "Amazon",
                 "productUrl": "https://example.com/nopub-%s",
@@ -803,7 +786,6 @@ class AdminImportResourceTest {
               "items": [{
                 "sourceId": "%s",
                 "title": "Future Promo %s",
-                "description": "Item with custom publishAt",
                 "marketplace": "AMAZON",
                 "storeName": "Amazon",
                 "productUrl": "https://example.com/pub-%s",

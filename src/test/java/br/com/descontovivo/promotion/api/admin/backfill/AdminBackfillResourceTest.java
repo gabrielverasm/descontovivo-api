@@ -362,8 +362,6 @@ class AdminBackfillResourceTest {
         entity.setTitle("Backfill Test " + suffix);
         entity.setUrl("https://example.com/" + suffix);
         entity.setNormalizedUrl("example.com/" + suffix);
-        entity.setDescription("Test promotion for backfill " + suffix);
-        entity.setNormalizedDescription("test promotion for backfill " + suffix);
         entity.setCurrentPrice(BigDecimal.valueOf(99.90));
         entity.setImageUrl(imageUrl);
         entity.setImageKey(null);
@@ -392,8 +390,6 @@ class AdminBackfillResourceTest {
         entity.setTitle("R2 Image Test " + suffix);
         entity.setUrl("https://example.com/r2-" + suffix);
         entity.setNormalizedUrl("example.com/r2-" + suffix);
-        entity.setDescription("Already on R2 " + suffix);
-        entity.setNormalizedDescription("already on r2 " + suffix);
         entity.setCurrentPrice(BigDecimal.valueOf(149.90));
         entity.setImageUrl("https://img.descontovivo.com.br/promotions/imported/2025/07/" + suffix + ".webp");
         entity.setImageKey("promotions/imported/2025/07/" + suffix + ".webp");

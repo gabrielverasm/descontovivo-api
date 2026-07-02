@@ -76,9 +76,6 @@ public class PromotionService {
 
         StoreEntity store = resolveStore(request.storeSlug(), request.url());
 
-        String description = (request.description() != null && !request.description().isBlank())
-                ? request.description() : request.title();
-
         String normalizedUrl = PromotionNormalizer.normalizeUrl(request.url());
         LocalDate today = LocalDate.now(SAO_PAULO);
 
@@ -97,8 +94,6 @@ public class PromotionService {
         entity.setTitle(request.title());
         entity.setUrl(request.url());
         entity.setNormalizedUrl(normalizedUrl);
-        entity.setDescription(description);
-        entity.setNormalizedDescription(PromotionNormalizer.normalizeDescription(description));
         entity.setCurrentPrice(request.currentPrice());
         entity.setOriginalPrice(request.originalPrice());
         entity.setCouponCode(request.couponCode());

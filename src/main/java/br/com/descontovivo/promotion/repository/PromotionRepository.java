@@ -36,7 +36,7 @@ public class PromotionRepository implements PanacheRepositoryBase<PromotionEntit
             params.add(br.com.descontovivo.promotion.entity.OfferAvailability.valueOf(availability));
         }
         if (query != null && !query.isBlank()) {
-            sb.append(" and (lower(title) like ?").append(idx).append(" or lower(description) like ?").append(idx).append(")");
+            sb.append(" and lower(title) like ?").append(idx);
             params.add("%" + query.toLowerCase() + "%");
             idx++;
         }
@@ -62,7 +62,7 @@ public class PromotionRepository implements PanacheRepositoryBase<PromotionEntit
             params.add(br.com.descontovivo.promotion.entity.OfferAvailability.valueOf(availability));
         }
         if (query != null && !query.isBlank()) {
-            sb.append(" and (lower(title) like ?").append(idx).append(" or lower(description) like ?").append(idx).append(")");
+            sb.append(" and lower(title) like ?").append(idx);
             params.add("%" + query.toLowerCase() + "%");
             idx++;
         }
@@ -74,11 +74,6 @@ public class PromotionRepository implements PanacheRepositoryBase<PromotionEntit
         return find("status", Sort.by("createdAt").descending(), status)
                 .page(Page.of(page, size))
                 .list();
-    }
-
-    public boolean existsDuplicate(String normalizedUrl, String normalizedDescription, LocalDate createdDate) {
-        return count("normalizedUrl = ?1 and normalizedDescription = ?2 and createdDate = ?3",
-                normalizedUrl, normalizedDescription, createdDate) > 0;
     }
 
     public boolean existsDuplicateByUrl(String normalizedUrl, LocalDate createdDate) {

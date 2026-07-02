@@ -1,7 +1,6 @@
 package br.com.descontovivo.promotion.support;
 
 import java.net.URI;
-import java.text.Normalizer;
 import java.util.Arrays;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -33,14 +32,5 @@ public final class PromotionNormalizer {
         } catch (Exception e) {
             return url.trim().toLowerCase().replaceAll("/+$", "");
         }
-    }
-
-    public static String normalizeDescription(String description) {
-        String decomposed = Normalizer.normalize(description, Normalizer.Form.NFD);
-        return decomposed
-                .replaceAll("[\\p{InCombiningDiacriticalMarks}]", "")
-                .toLowerCase()
-                .replaceAll("\\s+", " ")
-                .trim();
     }
 }
