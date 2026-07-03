@@ -56,6 +56,8 @@ Resposta paginada:
 | DELETE | /promotions/{slug}/vote              | Remover voto                     |
 | POST   | /promotions/{slug}/comments          | Comentar na promoção             |
 | POST   | /comments/{id}/replies               | Responder comentário             |
+| POST   | /account/data-requests               | Criar solicitação de dados (LGPD)|
+| GET    | /account/data-requests/me            | Listar minhas solicitações       |
 
 ### GET /account/me
 
@@ -186,6 +188,8 @@ Remove o voto do usuário autenticado.
 |--------|--------------------------------------|----------------------------------------------|
 | POST   | /admin/promotions/import             | Importar promoções via JSON                  |
 | POST   | /admin/promotions/images/backfill    | Backfill imagens externas para R2            |
+| GET    | /admin/account/data-requests         | Listar solicitações de dados (admin)         |
+| PATCH  | /admin/account/data-requests/{id}    | Atualizar status de solicitação (admin)      |
 
 ### POST /admin/promotions/import?dryRun=false
 
@@ -416,6 +420,157 @@ Ação: `REMOVE` (reason obrigatório).
 ```json
 { "action": "REMOVE", "reason": "Comentário ofensivo" }
 ```
+
+---
+
+## Endpoints de Privacidade/Dados Pessoais (Autenticado)
+
+| Método | Endpoint                             | Descrição                                    |
+|--------|--------------------------------------|----------------------------------------------|
+| POST   | /account/data-requests               | Criar solicitação de privacidade (LGPD)      |
+| GET    | /account/data-requests/me            | Listar solicitações do próprio usuário       |
+
+### POST /account/data-requests
+
+Cria uma solicitação de privacidade/dados pessoais. Requer autenticação.
+
+Request:
+
+```json
+{
+  "type": "ACCESS",
+  "details": "Quero saber quais dados pessoais estão armazenados."
+}
+```
+
+| Campo   | Obrigatório | Regras                                                                 |
+|---------|-------------|------------------------------------------------------------------------|
+| type    | sim         | Enum: `ACCESS`, `CORRECTION`, `DELETION`, `ANONYMIZATION`, `CONSENT_REVOCATION`, `OTHER` |
+| details | não         | max 2000 chars; detalhes adicionais sobre a solicitação                |
+
+Response `201`:
+
+```json
+{
+  "id": "uuid",
+  "type": "ACCESS",
+  "status": "PENDING",
+  "createdAt": "2026-07-03T14:30:00-03:00",
+  "message": "Solicitação registrada. Avaliaremos o pedido conforme a legislação aplicável e as necessidades de segurança e manutenção de registros permitidos."
+}
+```
+
+### GET /account/data-requests/me
+
+Lista todas as solicitações do usuário autenticado.
+
+Response `200`:
+
+```json
+[
+  {
+    "id": "uuid",
+    "type": "DELETION",
+    "status": "IN_REVIEW",
+    "createdAt": "2026-07-01T10:00:00-03:00",
+    "resolvedAt": null
+  }
+]
+```
+
+---
+
+## Endpoints Admin — Solicitações de Dados (role `admin`)
+
+| Método | Endpoint                                    | Descrição                                    |
+|--------|---------------------------------------------|----------------------------------------------|
+| GET    | /admin/account/data-requests                | Listar todas as solicitações (filtros)       |
+| PATCH  | /admin/account/data-requests/{id}           | Atualizar status de uma solicitação          |
+
+### GET /admin/account/data-requests
+
+Lista todas as solicitações de privacidade. Suporta filtros e paginação.
+
+Query params:
+
+| Parâmetro   | Tipo   | Obrigatório | Descrição                                     |
+|-------------|--------|-------------|-----------------------------------------------|
+| status      | string | não         | Filtrar por status: `PENDING`, `IN_REVIEW`, `COMPLETED`, `REJECTED` |
+| type        | string | não         | Filtrar por tipo: `ACCESS`, `CORRECTION`, `DELETION`, `ANONYMIZATION`, `CONSENT_REVOCATION`, `OTHER` |
+| userSubject | string | não         | Filtrar por subject do usuário                |
+| page        | int    | não         | Página (default: 0)                           |
+| size        | int    | não         | Itens por página (default: 20, max: 100)      |
+
+Response `200`:
+
+```json
+[
+  {
+    "id": "uuid",
+    "userSubject": "keycloak-user-sub-123",
+    "username": "gabriel",
+    "email": "gabriel@email.com",
+    "displayName": "Gabriel Veras",
+    "type": "DELETION",
+    "status": "PENDING",
+    "details": "Quero que meus dados sejam removidos.",
+    "createdAt": "2026-07-01T10:00:00-03:00",
+    "updatedAt": null,
+    "resolvedAt": null,
+    "resolutionNote": null
+  }
+]
+```
+
+### PATCH /admin/account/data-requests/{id}
+
+Atualiza o status de uma solicitação. Preenche `updatedAt` automaticamente. Preenche `resolvedAt` quando status é terminal (`COMPLETED` ou `REJECTED`).
+
+Request:
+
+```json
+{
+  "status": "COMPLETED",
+  "resolutionNote": "Dados enviados por e-mail conforme solicitado."
+}
+```
+
+| Campo          | Obrigatório | Regras                                                        |
+|----------------|-------------|---------------------------------------------------------------|
+| status         | sim         | Enum: `PENDING`, `IN_REVIEW`, `COMPLETED`, `REJECTED`         |
+| resolutionNote | não         | max 2000 chars; nota de resolução (opcional em qualquer status)|
+
+Response `200`:
+
+```json
+{
+  "id": "uuid",
+  "userSubject": "keycloak-user-sub-123",
+  "username": "gabriel",
+  "email": "gabriel@email.com",
+  "displayName": "Gabriel Veras",
+  "type": "DELETION",
+  "status": "COMPLETED",
+  "details": "Quero que meus dados sejam removidos.",
+  "createdAt": "2026-07-01T10:00:00-03:00",
+  "updatedAt": "2026-07-03T15:00:00-03:00",
+  "resolvedAt": "2026-07-03T15:00:00-03:00",
+  "resolutionNote": "Dados enviados por e-mail conforme solicitado."
+}
+```
+
+Regras de transição de status:
+
+| Status atual        | Pode transitar para                         |
+|---------------------|---------------------------------------------|
+| PENDING             | IN_REVIEW, COMPLETED, REJECTED              |
+| IN_REVIEW           | COMPLETED, REJECTED, PENDING                |
+| COMPLETED (final)   | ❌ Não permite alteração                    |
+| REJECTED (final)    | ❌ Não permite alteração                    |
+
+- Tentativa de alterar status de solicitação com status final retorna **400**.
+- ID inexistente retorna **404**.
+- `resolutionNote` não é obrigatório em nenhum status nesta versão (o admin pode completar ou rejeitar sem nota, mas é recomendado incluir para auditoria).
 
 ---
 
