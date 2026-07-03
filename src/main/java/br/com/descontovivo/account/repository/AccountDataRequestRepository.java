@@ -54,4 +54,11 @@ public class AccountDataRequestRepository implements PanacheRepositoryBase<Accou
                 .page(page, effectiveSize)
                 .list();
     }
+
+    /**
+     * Count data requests with status PENDING or IN_REVIEW (i.e., "open" requests).
+     */
+    public long countOpenRequests() {
+        return count("status = ?1 or status = ?2", DataRequestStatus.PENDING, DataRequestStatus.IN_REVIEW);
+    }
 }
