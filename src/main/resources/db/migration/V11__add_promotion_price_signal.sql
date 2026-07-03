@@ -1,0 +1,1 @@
+ALTER TABLE promotion ADD COLUMN price_signal VARCHAR(30) NOT NULL DEFAULT 'NONE';

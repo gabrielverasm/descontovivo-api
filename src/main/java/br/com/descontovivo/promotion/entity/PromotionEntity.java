@@ -106,6 +106,10 @@ public class PromotionEntity {
     @Column(length = 50)
     private String category;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "price_signal", nullable = false, length = 30)
+    private PromotionPriceSignal priceSignal = PromotionPriceSignal.NONE;
+
     @Column(name = "likes_count", nullable = false)
     private int likesCount;
 
@@ -181,4 +185,6 @@ public class PromotionEntity {
     public void setDeliveredBy(String deliveredBy) { this.deliveredBy = deliveredBy; }
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
+    public PromotionPriceSignal getPriceSignal() { return priceSignal; }
+    public void setPriceSignal(PromotionPriceSignal priceSignal) { this.priceSignal = priceSignal; }
 }

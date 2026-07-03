@@ -21,7 +21,8 @@ public record ModerationActionRequest(
         @Size(max = 100) String storeName,
         @Size(max = 100) String soldBy,
         @Size(max = 100) String deliveredBy,
-        @Size(max = 50) String category
+        @Size(max = 50) String category,
+        @Size(max = 30) String priceSignal
 ) {
     public enum ModerationAction {
         APPROVE, REJECT, REMOVE, EDIT
