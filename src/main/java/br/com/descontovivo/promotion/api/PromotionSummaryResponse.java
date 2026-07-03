@@ -20,6 +20,7 @@ public record PromotionSummaryResponse(
         String soldBy,
         String deliveredBy,
         String category,
+        String priceSignal,
         int likesCount,
         int dislikesCount,
         int commentsCount,
@@ -36,6 +37,7 @@ public record PromotionSummaryResponse(
                 e.getImageUrl(), e.getAvailability().name(),
                 new StoreRef(e.getStore().getSlug(), e.getStore().getName()),
                 e.getSoldBy(), e.getDeliveredBy(), e.getCategory(),
+                e.getPriceSignal() != null ? e.getPriceSignal().name() : "NONE",
                 e.getLikesCount(), e.getDislikesCount(), e.getCommentsCount(),
                 e.getCreatedAt(), e.getPublishedAt(),
                 e.getAuthorUsername()

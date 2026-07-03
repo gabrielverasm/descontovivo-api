@@ -6,6 +6,7 @@ import br.com.descontovivo.moderation.repository.ModerationLogRepository;
 import br.com.descontovivo.promotion.api.PromotionDetailResponse;
 import br.com.descontovivo.promotion.entity.OfferAvailability;
 import br.com.descontovivo.promotion.entity.PromotionEntity;
+import br.com.descontovivo.promotion.entity.PromotionPriceSignal;
 import br.com.descontovivo.promotion.entity.PromotionStatus;
 import br.com.descontovivo.promotion.repository.PromotionRepository;
 import br.com.descontovivo.promotion.support.PromotionNormalizer;
@@ -129,6 +130,20 @@ public class PromotionModerationService {
         if (req.soldBy() != null) entity.setSoldBy(req.soldBy());
         if (req.deliveredBy() != null) entity.setDeliveredBy(req.deliveredBy());
         if (req.category() != null) entity.setCategory(req.category());
+        if (req.priceSignal() != null) {
+            entity.setPriceSignal(parsePriceSignal(req.priceSignal()));
+        }
+    }
+
+    private PromotionPriceSignal parsePriceSignal(String value) {
+        if (value == null || value.isBlank()) {
+            return PromotionPriceSignal.NONE;
+        }
+        try {
+            return PromotionPriceSignal.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new jakarta.ws.rs.BadRequestException("Selo de preço inválido: " + value);
+        }
     }
 
     private void updateImageIfRequested(PromotionEntity entity, ModerationActionRequest req) {
