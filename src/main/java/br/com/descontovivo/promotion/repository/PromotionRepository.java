@@ -94,4 +94,32 @@ public class PromotionRepository implements PanacheRepositoryBase<PromotionEntit
                 .page(Page.of(0, limit))
                 .list();
     }
+
+    /**
+     * Count promotions currently visible (PUBLISHED and publishAt in the past).
+     */
+    public long countPublishedVisible() {
+        return count("status = ?1 and publishAt <= ?2", PromotionStatus.PUBLISHED, OffsetDateTime.now());
+    }
+
+    /**
+     * Find the publishedAt timestamp of the most recently published promotion.
+     * Returns null if no published promotions exist.
+     */
+    public Optional<OffsetDateTime> findLatestPublishedAt() {
+        return find("status = ?1 and publishAt <= ?2",
+                Sort.by("publishedAt").descending(),
+                PromotionStatus.PUBLISHED, OffsetDateTime.now())
+                .page(Page.of(0, 1))
+                .stream()
+                .map(PromotionEntity::getPublishedAt)
+                .findFirst();
+    }
+
+    /**
+     * Count promotions pending moderation review.
+     */
+    public long countPendingModeration() {
+        return count("status", PromotionStatus.PENDING_REVIEW);
+    }
 }
