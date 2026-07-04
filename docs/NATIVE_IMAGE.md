@@ -264,8 +264,51 @@ Rollback é instantâneo — a imagem JVM anterior está no registry.
 - [ ] Validar SSE com múltiplos clientes simultâneos em native
 - [ ] Investigar primeiro tick SSE vazio observado em testes locais
 - [ ] Monitorar memória/CPU em produção por ao menos 24h em canary
-- [ ] Decidir se CI vai buildar native automaticamente ou se será manual
+- [x] Decidir se CI vai buildar native automaticamente ou se será manual → **manual via workflow_dispatch** (seção 12)
 - [ ] Considerar multi-stage Dockerfile (builder + runtime) se quiser CI self-contained
+
+## 12. GitHub Actions — build manual
+
+O workflow **Native Image Build** (`.github/workflows/native-image.yml`) permite gerar e publicar a imagem native no GHCR sob demanda, sem afetar produção.
+
+### Acionamento
+
+Actions → **Native Image Build** → **Run workflow** (branch desejada).
+
+Não roda automaticamente em push nem pull request.
+
+### O que faz
+
+1. Roda testes JVM (`./mvnw clean verify`).
+2. Compila native com container-build (Mandrel).
+3. Verifica artefato gerado (`target/*-runner`).
+4. Builda e publica imagem Docker native no GHCR.
+
+### Tags publicadas
+
+| Tag | Descrição |
+|-----|-----------|
+| `ghcr.io/gabrielverasm/descontovivo-api:native-<sha>` | Imutável, vinculada ao commit |
+| `ghcr.io/gabrielverasm/descontovivo-api:native-manual` | Sobrescrita a cada execução manual |
+
+> A tag `latest` **não é afetada** — continua apontando para a imagem JVM de produção.
+
+### O que NÃO faz
+
+- Não faz deploy na VPS.
+- Não altera produção.
+- Não usa secrets de produção (apenas `GITHUB_TOKEN` para push no GHCR).
+- Não substitui o workflow JVM (`deploy-api.yml`).
+
+### Limitações
+
+- O runner `ubuntu-latest` tem 7 GB RAM. O build native consome ~6 GB — funciona, mas sem muita folga.
+- Se falhar por OOM, a solução futura é usar runner maior ou self-hosted.
+- `timeout-minutes: 45` para evitar builds travados.
+
+### Canary manual após build
+
+Após a execução do workflow, a imagem pode ser usada para canary manual na VPS (ver seção 10).
 
 ## Configuração nativa no projeto
 
