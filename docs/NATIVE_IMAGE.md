@@ -16,7 +16,7 @@ Gerar e executar a API como binário nativo (GraalVM/Mandrel), obtendo startup s
 | Docker image | ~380 MB (Temurin JRE) | ~404 MB (UBI9-minimal + binary) |
 | Debug/profiling | Completo (JMX, JFR, etc.) | Limitado |
 | Reflection | Transparente | Tratado pelo Quarkus em build-time |
-| Deploy atual | ✅ Produção (GHCR + VPS) | 🧪 Pronto para canary/staging |
+| Deploy atual | Manual (rollback) | ✅ Produção (GHCR + VPS, automático) |
 
 ## 3. Build native local
 
@@ -180,135 +180,110 @@ Medido localmente (WSL2, 12 CPUs, 15.5 GB RAM, PostgreSQL local):
 | SSE `/api/v1/events/public/stream` | ✅ | ✅ | — |
 | Admin stream sem token | ✅ 401 | ✅ 401 | — |
 
-## 10. Plano de deploy em produção
+## 10. CI/CD — Deploy native automático após merge
 
-### Situação atual
-
-- **Produção continua usando JVM** (`docker-compose.prod.yml` / imagem JVM no GHCR).
-- **Native em produção é canary manual** — não será ativado automaticamente.
-- Nenhuma automação de deploy native existe por enquanto.
-- A decisão de migrar para native em produção será tomada apenas após validação canary completa.
-
-### Estratégia: canary side-by-side (manual)
+### Fluxo principal
 
 ```
-┌─────────────────────────────────────────┐
-│ VPS                                     │
-│                                         │
-│  [JVM container :8080] ← tráfego real  │
-│  [Native container :8085] ← smoke test │
-│                                         │
-└─────────────────────────────────────────┘
+PR merge → master → workflow "Deploy API Native"
+                         │
+                         ├─ Job: native-build
+                         │    ├─ Roda testes JVM (./mvnw clean verify)
+                         │    ├─ Compila native (Mandrel container-build)
+                         │    ├─ Push GHCR: native-<sha> + native-manual
+                         │    └─ Summary no GitHub
+                         │
+                         └─ Job: deploy-production (needs: native-build)
+                              ├─ ⏸️ Aguarda aprovação no environment "production"
+                              ├─ Copia docker-compose.prod.yml para VPS
+                              ├─ Gera .env com secrets + IMAGE_TAG=native-<sha>
+                              ├─ Pull + up container
+                              ├─ Health check (https://api.descontovivo.com/q/health)
+                              └─ Rollback automático se health falhar
 ```
-
-### Passos
-
-1. **Build** imagem native localmente ou no CI:
-   ```bash
-   ./mvnw package -Dquarkus.native.enabled=true \
-     -Dquarkus.native.container-build=true -DskipTests
-   docker build -f src/main/docker/Dockerfile.native \
-     -t ghcr.io/gabrielverasm/descontovivo-api:native-$(git rev-parse --short HEAD) .
-   docker push ghcr.io/gabrielverasm/descontovivo-api:native-$(git rev-parse --short HEAD)
-   ```
-
-2. **Deploy canary** na VPS (porta alternativa):
-   ```bash
-   docker run -d --name descontovivo-api-native \
-     --env-file .env \
-     --network descontovivo-public \
-     -p 8085:8080 \
-     ghcr.io/gabrielverasm/descontovivo-api:native-<sha>
-   ```
-
-3. **Smoke tests** no servidor (de fora do container):
-   ```bash
-   curl -f http://localhost:8085/q/health
-   curl "http://localhost:8085/api/v1/promotions?page=0&size=1"
-   curl -N --max-time 10 http://localhost:8085/api/v1/events/public/stream
-   ```
-
-4. **Swap** (se tudo OK):
-   ```bash
-   docker stop descontovivo-api        # para JVM
-   docker stop descontovivo-api-native
-   # Reiniciar native na porta 8080
-   docker run -d --name descontovivo-api \
-     --env-file .env \
-     --network descontovivo-public \
-     -p 8080:8080 \
-     ghcr.io/gabrielverasm/descontovivo-api:native-<sha>
-   ```
-
-5. **Confirmar:**
-   ```bash
-   curl -f https://api.descontovivo.com/q/health
-   ```
-
-### Rollback para JVM
-
-```bash
-docker stop descontovivo-api
-docker compose -f docker-compose.prod.yml pull
-docker compose -f docker-compose.prod.yml up -d
-# Confirmar
-curl -f https://api.descontovivo.com/q/health
-```
-
-Rollback é instantâneo — a imagem JVM anterior está no registry.
-
-## 11. O que falta antes de produção
-
-- [ ] Testar com Keycloak real (validar JWT em native com RS256)
-- [ ] Testar upload de imagem + processamento WebP em native com R2 real
-- [ ] Validar SSE com múltiplos clientes simultâneos em native
-- [ ] Investigar primeiro tick SSE vazio observado em testes locais
-- [ ] Monitorar memória/CPU em produção por ao menos 24h em canary
-- [x] Decidir se CI vai buildar native automaticamente ou se será manual → **manual via workflow_dispatch** (seção 12)
-- [ ] Considerar multi-stage Dockerfile (builder + runtime) se quiser CI self-contained
-
-## 12. GitHub Actions — build manual
-
-O workflow **Native Image Build** (`.github/workflows/native-image.yml`) permite gerar e publicar a imagem native no GHCR sob demanda, sem afetar produção.
 
 ### Acionamento
 
-Actions → **Native Image Build** → **Run workflow** (branch desejada).
-
-Não roda automaticamente em push nem pull request.
-
-### O que faz
-
-1. Roda testes JVM (`./mvnw clean verify`).
-2. Compila native com container-build (Mandrel).
-3. Verifica artefato gerado (`target/*-runner`).
-4. Builda e publica imagem Docker native no GHCR.
+| Evento | Comportamento |
+|--------|--------------|
+| Push na `master` (merge de PR) | Dispara automaticamente |
+| `workflow_dispatch` | Execução manual (Actions → Deploy API Native → Run workflow) |
 
 ### Tags publicadas
 
 | Tag | Descrição |
 |-----|-----------|
 | `ghcr.io/gabrielverasm/descontovivo-api:native-<sha>` | Imutável, vinculada ao commit |
-| `ghcr.io/gabrielverasm/descontovivo-api:native-manual` | Sobrescrita a cada execução manual |
+| `ghcr.io/gabrielverasm/descontovivo-api:native-manual` | Sobrescrita a cada execução |
 
-> A tag `latest` **não é afetada** — continua apontando para a imagem JVM de produção.
+> A tag `latest` **não é afetada** — permanece apontando para a imagem JVM (usada pelo workflow de rollback).
 
-### O que NÃO faz
+### Aprovação do deploy
 
-- Não faz deploy na VPS.
-- Não altera produção.
-- Não usa secrets de produção (apenas `GITHUB_TOKEN` para push no GHCR).
-- Não substitui o workflow JVM (`deploy-api.yml`).
+O job `deploy-production` usa `environment: production` com proteção de aprovação configurada no GitHub.
+
+1. O build native roda e publica a imagem no GHCR.
+2. O deploy **para e aguarda aprovação** no GitHub.
+3. Após aprovação manual, o deploy aplica a imagem native na VPS.
+4. Se o health check falhar, faz rollback automático usando backup do `.env`.
+
+### Segurança
+
+- Secrets são passados via `env` do step SSH — nunca impressos em logs.
+- `.env` na VPS tem `chmod 600`.
+- Backup criado antes de sobrescrever (`.env.backup.<timestamp>`).
+- Health check com rollback automático protege contra deploy quebrado.
+- `timeout-minutes: 45` (build) e `timeout-minutes: 10` (deploy).
 
 ### Limitações
 
 - O runner `ubuntu-latest` tem 7 GB RAM. O build native consome ~6 GB — funciona, mas sem muita folga.
 - Se falhar por OOM, a solução futura é usar runner maior ou self-hosted.
-- `timeout-minutes: 45` para evitar builds travados.
 
-### Canary manual após build
+## 11. Rollback JVM manual
 
-Após a execução do workflow, a imagem pode ser usada para canary manual na VPS (ver seção 10).
+O workflow **Deploy API JVM Manual** (`.github/workflows/deploy-api.yml`) existe exclusivamente para rollback ou deploy JVM sob demanda.
+
+### Quando usar
+
+- A imagem native apresentou problema em produção.
+- Precisa voltar para JVM enquanto investiga.
+- Precisa fazer deploy de uma versão JVM específica.
+
+### Acionamento
+
+Actions → **Deploy API JVM Manual** → **Run workflow**.
+
+> ⚠️ **Não roda automaticamente em push na master.** Apenas execução manual.
+
+### O que faz
+
+1. Roda testes JVM (`./mvnw clean verify`).
+2. Builda imagem JVM e publica no GHCR (tags: `latest` + `<sha>`).
+3. Aguarda aprovação no environment `production`.
+4. Faz deploy JVM na VPS com `IMAGE_TAG=<sha>`.
+5. Health check com retry.
+
+### Rollback rápido na VPS (sem CI)
+
+Se precisar reverter imediatamente sem esperar CI:
+
+```bash
+ssh <vps>
+cd /opt/descontovivo/api
+# O .env.backup.* mais recente tem a IMAGE_TAG anterior
+cp .env.backup.<timestamp> .env
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d --remove-orphans
+curl -f https://api.descontovivo.com/q/health
+```
+
+## 12. Resumo dos workflows
+
+| Workflow | Arquivo | Trigger | Finalidade |
+|----------|---------|---------|------------|
+| Deploy API Native | `native-image.yml` | push master + manual | Build native + deploy produção (fluxo principal) |
+| Deploy API JVM Manual | `deploy-api.yml` | manual | Rollback JVM / deploy JVM sob demanda |
 
 ## Configuração nativa no projeto
 
