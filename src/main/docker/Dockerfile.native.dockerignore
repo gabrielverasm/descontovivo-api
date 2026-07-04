@@ -1,0 +1,11 @@
+# .dockerignore for native image build
+# Used with: docker build -f src/main/docker/Dockerfile.native .
+#
+# Permite apenas os artefatos native necessários.
+
+# Tudo excluído por padrão
+*
+
+# Permitir binário native e shared libs
+!target/*-runner
+!target/lib*.so
