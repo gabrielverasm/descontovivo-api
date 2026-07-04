@@ -312,7 +312,30 @@ Após a execução do workflow, a imagem pode ser usada para canary manual na VP
 
 ## Configuração nativa no projeto
 
-A única configuração especial para native está em `application.properties`:
+### HTTP Client explícito para AWS SDK S3
+
+Em native image, o AWS SDK **não consegue descobrir automaticamente** a implementação HTTP via service loader/provider chain. O erro é:
+
+```
+SdkClientException: Unable to load an HTTP implementation from any provider in the chain.
+```
+
+**Correção:** o `S3ClientProducer` usa `UrlConnectionHttpClient` explicitamente:
+
+```java
+S3Client.builder()
+    .httpClient(UrlConnectionHttpClient.create())
+    // ...
+    .build();
+```
+
+A dependência `software.amazon.awssdk:url-connection-client` é declarada no `pom.xml`.
+
+Isso garante que o S3Client funciona tanto em JVM quanto em native sem depender de provider discovery.
+
+### NTLMEngineImpl deferred initialization
+
+Em `application.properties`:
 
 ```properties
 quarkus.native.additional-build-args=--initialize-at-run-time=org.apache.http.impl.auth.NTLMEngineImpl

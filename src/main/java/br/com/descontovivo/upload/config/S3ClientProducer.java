@@ -5,6 +5,7 @@ import jakarta.enterprise.inject.Produces;
 import jakarta.inject.Singleton;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
@@ -34,6 +35,7 @@ public class S3ClientProducer {
     @Singleton
     S3Client s3Client(R2Config config) {
         return S3Client.builder()
+                .httpClient(UrlConnectionHttpClient.create())
                 .endpointOverride(URI.create(config.endpoint()))
                 .region(Region.of(config.region()))
                 .credentialsProvider(StaticCredentialsProvider.create(
