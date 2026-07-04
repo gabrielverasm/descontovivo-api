@@ -2,9 +2,10 @@
 
 ## Visão geral
 
-A API expõe dois endpoints de Server-Sent Events (SSE) para notificações leves em quase tempo real:
+A API expõe três endpoints de Server-Sent Events (SSE) para notificações leves em quase tempo real:
 
 - **Stream público**: contadores de promoções publicadas (sem autenticação).
+- **Stream moderação**: contadores de promoções pendentes de moderação (requer role `admin` ou `moderator`).
 - **Stream admin**: contadores de moderação e solicitações de dados (requer role `admin`).
 
 Os streams emitem snapshots periódicos — não são eventos transacionais instantâneos no momento do insert/update.
@@ -42,6 +43,39 @@ data: {"publishedCount":123,"latestPublishedAt":"2026-07-03T21:59:00Z"}
 |-------------------|--------------------|----------------------------------------------------|
 | `publishedCount`  | long               | Total de promoções publicadas e visíveis agora     |
 | `latestPublishedAt` | ISO 8601 / null  | Timestamp da última promoção publicada (campo `published_at`) |
+
+---
+
+### GET `/api/v1/events/moderation/stream`
+
+| Propriedade     | Valor                                  |
+|-----------------|----------------------------------------|
+| Content-Type    | `text/event-stream`                    |
+| Autenticação    | Bearer token, role `admin` ou `moderator` |
+| Frequência      | Snapshot a cada 30 segundos            |
+| Dados sensíveis | Nenhum (apenas contadores)             |
+
+**Eventos emitidos:**
+
+#### `heartbeat`
+
+```
+event: heartbeat
+data: {"timestamp":"2026-07-03T22:00:00Z"}
+```
+
+#### `moderation-promotions`
+
+```
+event: moderation-promotions
+data: {"pendingCount":4}
+```
+
+| Campo          | Tipo | Descrição                                      |
+|----------------|------|------------------------------------------------|
+| `pendingCount` | long | Promoções com status `PENDING_REVIEW`          |
+
+**Uso na UI:** Este é o endpoint que a UI deve consumir para exibir o badge "Moderar promoções" no menu de moderação — tanto para admins quanto moderadores.
 
 ---
 
@@ -85,6 +119,8 @@ data: {"openCount":2}
 |-------------|------|-----------------------------------------------------|
 | `openCount` | long | Solicitações com status `PENDING` ou `IN_REVIEW`    |
 
+**Uso na UI:** Este é o endpoint que a UI deve consumir para exibir o badge "Solicitações de dados" — exclusivo para admins.
+
 ---
 
 ## Segurança
@@ -93,8 +129,17 @@ data: {"openCount":2}
 
 - Nenhum dado sensível é transmitido via SSE (e-mail, nome, userSubject, detalhes).
 - Eventos contêm apenas contadores agregados.
-- O endpoint admin exige Bearer token com role `admin` no header `Authorization`.
+- Moderation stream exige Bearer token com role `admin` ou `moderator` no header `Authorization`.
+- Admin stream exige Bearer token com role `admin` no header `Authorization`.
 - **Não** usamos token em query param (`?token=...`). Isso é inseguro.
+
+### Matriz de acesso
+
+| Endpoint                   | `user` | `moderator` | `admin` |
+|----------------------------|--------|-------------|---------|
+| `/events/public/stream`    | ✅     | ✅          | ✅      |
+| `/events/moderation/stream`| ❌ 403 | ✅          | ✅      |
+| `/events/admin/stream`     | ❌ 403 | ❌ 403      | ✅      |
 
 ### Limitação do EventSource nativo
 
@@ -102,10 +147,11 @@ O `EventSource` nativo do browser **não suporta** headers customizados (como `A
 
 **Consequência:**
 
-| Endpoint              | Consumo no frontend                                          |
-|-----------------------|--------------------------------------------------------------|
-| `/events/public/stream` | `new EventSource(url)` — funciona diretamente              |
-| `/events/admin/stream`  | `fetch()` com `ReadableStream` ou lib como `@microsoft/fetch-event-source` |
+| Endpoint                     | Consumo no frontend                                          |
+|------------------------------|--------------------------------------------------------------|
+| `/events/public/stream`      | `new EventSource(url)` — funciona diretamente              |
+| `/events/moderation/stream`  | `fetch()` com `ReadableStream` ou lib como `@microsoft/fetch-event-source` |
+| `/events/admin/stream`       | `fetch()` com `ReadableStream` ou lib como `@microsoft/fetch-event-source` |
 
 A UI deve usar o access token atual do Keycloak/AuthService via header Authorization com fetch streaming. **Nunca colocar token em query string.**
 
@@ -187,7 +233,28 @@ source.onerror = () => {
 };
 ```
 
-### Stream admin (com auth)
+### Stream moderação (admin ou moderator)
+
+```typescript
+import { fetchEventSource } from '@microsoft/fetch-event-source';
+
+fetchEventSource('https://api.descontovivo.com/api/v1/events/moderation/stream', {
+  headers: {
+    'Authorization': `Bearer ${accessToken}`
+  },
+  onmessage(event) {
+    if (event.event === 'moderation-promotions') {
+      const data = JSON.parse(event.data);
+      updateModerationBadge(data.pendingCount);
+    }
+  },
+  onerror(err) {
+    // Reconectar com novo token se 401
+  }
+});
+```
+
+### Stream admin (admin-only)
 
 ```typescript
 import { fetchEventSource } from '@microsoft/fetch-event-source';
@@ -212,6 +279,16 @@ fetchEventSource('https://api.descontovivo.com/api/v1/events/admin/stream', {
 });
 ```
 
+### Qual stream usar para cada badge
+
+| Badge na UI                 | Endpoint recomendado           | Role mínima |
+|-----------------------------|--------------------------------|-------------|
+| "Moderar promoções"         | `/events/moderation/stream`    | `moderator` |
+| "Solicitações de dados"     | `/events/admin/stream`         | `admin`     |
+
+> **Admins** podem usar o moderation stream OU o admin stream para o badge de moderação.
+> A UI deve escolher o moderation stream para moderadores e, opcionalmente, o admin stream para admins (se quiser também o badge de data requests no mesmo stream).
+
 ### Atualizar badges e título
 
 ```typescript
@@ -227,6 +304,5 @@ document.title = pendingCount > 0
 
 - Push transacional via CDI Events / Vert.x EventBus ao publicar promoção.
 - `Last-Event-ID` para reconexão sem perda.
-- Endpoint separado para moderadores (moderation-only counters).
 - Rate limiting por IP para stream público.
 - Métricas Micrometer: conexões ativas, snapshots emitidos.
