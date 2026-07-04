@@ -47,6 +47,12 @@ class NotificationPayloadFactoryTest {
         assertFalse(node.get("timestamp").asText().isBlank(), "Timestamp must not be blank");
     }
 
+    @Test
+    void heartbeatPayload_isNotEmptyObject() {
+        String json = factory.buildHeartbeatPayload();
+        assertNotEquals("{}", json, "Heartbeat payload must not be empty JSON object");
+    }
+
     // ─── Public promotions ─────────────────────────────────────────────
 
     @Test
@@ -65,6 +71,17 @@ class NotificationPayloadFactoryTest {
     }
 
     @Test
+    void publicPromotionsPayload_isNotEmptyObject() throws Exception {
+        when(snapshotService.publicPromotionSnapshot())
+                .thenReturn(new PublicPromotionSnapshot(5, OffsetDateTime.now()));
+
+        String json = factory.buildPublicPromotionsPayload();
+
+        assertNotEquals("{}", json, "Public promotions payload must not be empty JSON object");
+        assertTrue(json.contains("publishedCount"), "JSON must contain publishedCount field name");
+    }
+
+    @Test
     void publicPromotionsPayload_withNullLatestPublishedAt_doesNotThrowNPE() throws Exception {
         // This is the critical test: Map.of would NPE here, but record serialization handles null.
         when(snapshotService.publicPromotionSnapshot())
@@ -78,6 +95,17 @@ class NotificationPayloadFactoryTest {
         assertEquals(0, node.get("publishedCount").asInt());
         assertTrue(node.has("latestPublishedAt"), "Must contain 'latestPublishedAt' even when null");
         assertTrue(node.get("latestPublishedAt").isNull(), "latestPublishedAt should be JSON null");
+    }
+
+    @Test
+    void publicPromotionsPayload_withNullDate_isNotEmptyObject() throws Exception {
+        when(snapshotService.publicPromotionSnapshot())
+                .thenReturn(new PublicPromotionSnapshot(0, null));
+
+        String json = factory.buildPublicPromotionsPayload();
+
+        assertNotEquals("{}", json,
+                "Public promotions with null date must still serialize fields, not produce {}");
     }
 
     // ─── Moderation ────────────────────────────────────────────────────
@@ -94,6 +122,17 @@ class NotificationPayloadFactoryTest {
         assertEquals(7, node.get("pendingCount").asInt());
     }
 
+    @Test
+    void moderationPromotionsPayload_isNotEmptyObject() throws Exception {
+        when(snapshotService.moderationPromotionSnapshot())
+                .thenReturn(new ModerationPromotionSnapshot(0));
+
+        String json = factory.buildModerationPromotionsPayload();
+
+        assertNotEquals("{}", json, "Moderation payload must not be empty JSON object");
+        assertTrue(json.contains("pendingCount"), "JSON must contain pendingCount field name");
+    }
+
     // ─── Admin data requests ───────────────────────────────────────────
 
     @Test
@@ -108,6 +147,17 @@ class NotificationPayloadFactoryTest {
         assertEquals(3, node.get("openCount").asInt());
     }
 
+    @Test
+    void adminDataRequestsPayload_isNotEmptyObject() throws Exception {
+        when(snapshotService.adminDataRequestSnapshot())
+                .thenReturn(new AdminDataRequestSnapshot(0));
+
+        String json = factory.buildAdminDataRequestsPayload();
+
+        assertNotEquals("{}", json, "Admin data requests payload must not be empty JSON object");
+        assertTrue(json.contains("openCount"), "JSON must contain openCount field name");
+    }
+
     // ─── Map.of null regression ────────────────────────────────────────
 
     @Test
@@ -119,5 +169,24 @@ class NotificationPayloadFactoryTest {
         JsonNode node = objectMapper.readTree(json);
         assertEquals(0, node.get("publishedCount").asInt());
         assertTrue(node.get("latestPublishedAt").isNull());
+    }
+
+    // ─── toJson failure behavior ───────────────────────────────────────
+
+    @Test
+    void toJson_throwsIllegalStateException_onSerializationFailure() {
+        // Create a factory with a broken ObjectMapper that always fails
+        ObjectMapper brokenMapper = Mockito.mock(ObjectMapper.class);
+        try {
+            when(brokenMapper.writeValueAsString(Mockito.any()))
+                    .thenThrow(new com.fasterxml.jackson.core.JsonProcessingException("simulated failure") {});
+        } catch (Exception ignored) {}
+
+        NotificationPayloadFactory brokenFactory =
+                new NotificationPayloadFactory(snapshotService, brokenMapper);
+
+        assertThrows(IllegalStateException.class,
+                () -> brokenFactory.toJson(new Object()),
+                "toJson must throw IllegalStateException on serialization failure, not return {}");
     }
 }

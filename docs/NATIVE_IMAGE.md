@@ -157,7 +157,7 @@ Mesmas variáveis do modo JVM — nenhuma variável nova para native.
 
 2. **Debug limitado:** Sem JMX, JFR, ou attach de debugger em native. Para troubleshooting profundo, usar JVM.
 
-3. **SSE primeiro tick:** Durante testes locais foi observado um primeiro snapshot vazio (`data:{}`) em uma execução. A causa ainda não foi investigada em profundidade — pode ser lazy init do Hibernate, timing do scheduler, ou condição específica de cold start. Antes de produção, validar novamente SSE com banco real e múltiplos ticks consecutivos.
+3. **SSE serialização:** Os records do módulo `notification.dto` (`PublicPromotionSnapshot`, `ModerationPromotionSnapshot`, `AdminDataRequestSnapshot`) não são retornados diretamente por endpoints JAX-RS — são serializados internamente pelo `NotificationPayloadFactory` via `ObjectMapper`. O Quarkus não registra automaticamente reflection para esses tipos, portanto requerem `@RegisterForReflection`. Sem a anotação, Jackson serializa os records como `{}` em native (sem lançar exceção).
 
 4. **Imagem Docker grande:** 404 MB (UBI9-minimal + binário + AWT libs). Poderia ser menor com imagem distroless estática se não precisássemos de AWT/scrimage, mas por enquanto é aceitável.
 
