@@ -1,6 +1,9 @@
-name: Native Image Build
+name: Deploy API Native
 
 on:
+  push:
+    branches:
+      - master
   workflow_dispatch:
 
 permissions:
@@ -60,15 +63,24 @@ jobs:
       - name: Summary
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF_SUMMARY
-          ## Native Image Build ✅
+          ## Deploy API Native ✅
 
           **Imagem:** \`${{ env.IMAGE }}\`
 
           **Tags publicadas:**
-          - \`native-${{ github.sha }}\` (imutável)
-          - \`native-manual\` (sobrescrita a cada execução manual)
+          - \`native-${{ github.sha }}\` (imutável, vinculada ao commit)
+          - \`native-manual\` (sobrescrita a cada execução)
 
-          O próximo job faz deploy em produção após aprovação no environment \`production\`.
+          > A tag \`latest\` **não é afetada** — permanece apontando para a imagem JVM.
+
+          ---
+
+          ### Próximo passo
+
+          O job **Deploy Production Native** aguarda aprovação no environment \`production\`.
+          Após aprovação, a imagem \`native-${{ github.sha }}\` será deployada na VPS.
+
+          Produção usa **native image** como padrão.
           EOF_SUMMARY
 
   deploy-production:
