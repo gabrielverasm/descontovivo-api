@@ -24,6 +24,7 @@ import java.util.List;
  * SSE notification stream endpoints.
  *
  * <p>Public stream: aggregate promotion data, accessible without authentication.
+ * <p>Moderation stream: moderation counters, requires admin or moderator role.
  * <p>Admin stream: moderation and data-request counters, requires admin role.
  *
  * <p><strong>JPA offload strategy:</strong> Hibernate ORM requires a managed thread (not Vert.x IO thread).
@@ -32,8 +33,9 @@ import java.util.List;
  * {@link br.com.descontovivo.notification.service.NotificationSnapshotService} methods
  * (which are @Transactional) execute on the default worker pool, not the IO event loop.
  *
- * <p>Security: No sensitive data is sent on public stream. Admin stream requires Bearer token
- * via Authorization header (NOT query param).
+ * <p>Security: No sensitive data is sent on public stream. Moderation stream requires Bearer token
+ * with admin or moderator role. Admin stream requires Bearer token with admin role.
+ * Authorization is always via header (NOT query param).
  */
 @Path("/api/v1/events")
 @Tag(name = "Notifications SSE", description = "Server-Sent Events for real-time notification snapshots")
@@ -72,6 +74,32 @@ public class NotificationStreamResource {
                         .emitOn(Infrastructure.getDefaultWorkerPool())
                         .onItem().transformToMultiAndConcatenate(tick ->
                                 Multi.createFrom().items(buildPublicEvents(sse).stream()))
+        );
+    }
+
+    /**
+     * Moderation SSE stream emitting moderation-only snapshots.
+     * <p>Events: heartbeat, moderation-promotions.
+     * <p>Requires admin or moderator role. Must be consumed with fetch streaming (Authorization header).
+     */
+    @GET
+    @Path("/moderation/stream")
+    @Produces(MediaType.SERVER_SENT_EVENTS)
+    @RestStreamElementType(MediaType.TEXT_PLAIN)
+    @RolesAllowed({"admin", "moderator"})
+    @SecurityRequirement(name = "BearerAuth")
+    @Operation(summary = "Moderation notification stream",
+               description = "SSE stream with moderation snapshots. Requires admin or moderator role and Bearer token.")
+    public Multi<OutboundSseEvent> moderationStream(@Context Sse sse) {
+        return Multi.createBy().concatenating().streams(
+                Multi.createFrom().item(() -> buildModerationEvents(sse))
+                        .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
+                        .onItem().transformToMultiAndConcatenate(list ->
+                                Multi.createFrom().items(list.stream())),
+                Multi.createFrom().ticks().every(snapshotInterval)
+                        .emitOn(Infrastructure.getDefaultWorkerPool())
+                        .onItem().transformToMultiAndConcatenate(tick ->
+                                Multi.createFrom().items(buildModerationEvents(sse).stream()))
         );
     }
 
@@ -115,6 +143,22 @@ public class NotificationStreamResource {
                 .build();
 
         return List.of(heartbeat, promotions);
+    }
+
+    private List<OutboundSseEvent> buildModerationEvents(Sse sse) {
+        OutboundSseEvent heartbeat = sse.newEventBuilder()
+                .name("heartbeat")
+                .data(String.class, payloadFactory.buildHeartbeatPayload())
+                .mediaType(MediaType.APPLICATION_JSON_TYPE)
+                .build();
+
+        OutboundSseEvent moderationEvent = sse.newEventBuilder()
+                .name("moderation-promotions")
+                .data(String.class, payloadFactory.buildModerationPromotionsPayload())
+                .mediaType(MediaType.APPLICATION_JSON_TYPE)
+                .build();
+
+        return List.of(heartbeat, moderationEvent);
     }
 
     private List<OutboundSseEvent> buildAdminEvents(Sse sse) {
