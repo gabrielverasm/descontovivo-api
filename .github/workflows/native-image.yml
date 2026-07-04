@@ -1,0 +1,100 @@
+name: Native Image Build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  native-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      - name: Run tests (JVM)
+        run: ./mvnw clean verify -q
+
+      - name: Build native image
+        run: |
+          ./mvnw package -Dquarkus.native.enabled=true \
+            -Dquarkus.native.container-build=true -DskipTests
+
+      - name: Verify native artifact
+        run: |
+          ls -lh target/*-runner
+          file target/*-runner
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push native Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/main/docker/Dockerfile.native
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:native-${{ github.sha }}
+            ${{ env.IMAGE }}:native-manual
+
+      - name: Summary
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Native Image Build ✅
+
+          **Imagem:** \`${{ env.IMAGE }}\`
+
+          **Tags publicadas:**
+          - \`native-${{ github.sha }}\` (imutável)
+          - \`native-manual\` (sobrescrita a cada execução manual)
+
+          ### Testar localmente
+
+          \`\`\`bash
+          docker pull ${{ env.IMAGE }}:native-${{ github.sha }}
+          docker run --rm -p 8080:8080 \\
+            -e QUARKUS_DATASOURCE_JDBC_URL="jdbc:postgresql://host.docker.internal:5432/descontovivo" \\
+            -e QUARKUS_DATASOURCE_USERNAME="descontovivo" \\
+            -e QUARKUS_DATASOURCE_PASSWORD="descontovivo" \\
+            -e OIDC_AUTH_SERVER_URL="http://host.docker.internal:8082/realms/descontovivo" \\
+            -e OIDC_CLIENT_ID="descontovivo-api" \\
+            -e R2_ENDPOINT="http://host.docker.internal:9000" \\
+            -e R2_ACCESS_KEY_ID="dev-access-key" \\
+            -e R2_SECRET_ACCESS_KEY="dev-secret-key" \\
+            ${{ env.IMAGE }}:native-${{ github.sha }}
+          \`\`\`
+
+          ### Canary manual na VPS (não executado automaticamente)
+
+          \`\`\`bash
+          docker pull ${{ env.IMAGE }}:native-${{ github.sha }}
+          docker run -d --name descontovivo-api-native \\
+            --env-file .env \\
+            --network descontovivo-public \\
+            -p 8085:8080 \\
+            ${{ env.IMAGE }}:native-${{ github.sha }}
+          curl -f http://localhost:8085/q/health
+          \`\`\`
+
+          > ⚠️ Este workflow **não faz deploy**. Produção continua usando imagem JVM.
+          EOF
