@@ -203,4 +203,5 @@ Para o roadmap completo, veja [`docs/ROADMAP.md`](docs/ROADMAP.md).
 - [Resumo para portfólio](docs/PORTFOLIO_SUMMARY.md)
 - [Keycloak local](docs/KEYCLOAK_LOCAL.md)
 - [Produção](docs/PRODUCTION_API.md)
+- [Native Image](docs/NATIVE_IMAGE.md)
 - [ADRs](docs/adr/)

@@ -1,0 +1,34 @@
+# =============================================================================
+# Dockerfile.native — DescontoVivo API (Quarkus Native Image)
+#
+# Uso:
+#   # Build native primeiro:
+#   ./mvnw package -Dquarkus.native.enabled=true \
+#     -Dquarkus.native.container-build=true -DskipTests
+#
+#   # Depois construir a imagem Docker:
+#   docker build -f src/main/docker/Dockerfile.native -t descontovivo-api:native .
+#
+# NÃO substitui o Dockerfile JVM da raiz do projeto.
+# =============================================================================
+
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6
+
+WORKDIR /work/
+
+# Copiar binário native e shared libs geradas pelo native-image (AWT para scrimage)
+COPY target/*-runner /work/application
+COPY target/lib*.so /work/
+
+RUN chmod 775 /work/application && \
+    chown 1001:root /work
+
+# Variáveis de ambiente entram em runtime (não embutir secrets aqui)
+# Ver docs/NATIVE_IMAGE.md para lista completa
+
+EXPOSE 8080
+
+# Usuário não-root
+USER 1001
+
+CMD ["./application", "-Dquarkus.http.host=0.0.0.0"]
