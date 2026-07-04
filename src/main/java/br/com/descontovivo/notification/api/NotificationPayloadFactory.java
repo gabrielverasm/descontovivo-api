@@ -68,13 +68,18 @@ public class NotificationPayloadFactory {
     }
 
     /**
-     * Serialize any object to JSON. Returns "{}" on error.
+     * Serialize any object to JSON.
+     *
+     * <p>Throws {@link IllegalStateException} on serialization failure instead of
+     * silently returning {@code "{}"}. This ensures serialization problems (e.g., missing
+     * reflection metadata in native image) are immediately visible rather than producing
+     * empty payloads that are hard to diagnose.
      */
     String toJson(Object obj) {
         try {
             return objectMapper.writeValueAsString(obj);
         } catch (JsonProcessingException e) {
-            return "{}";
+            throw new IllegalStateException("Failed to serialize SSE payload: " + obj.getClass().getName(), e);
         }
     }
 }
