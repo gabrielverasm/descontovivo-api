@@ -122,4 +122,41 @@ public class PromotionRepository implements PanacheRepositoryBase<PromotionEntit
     public long countPendingModeration() {
         return count("status", PromotionStatus.PENDING_REVIEW);
     }
+
+    /**
+     * List distinct non-null/non-empty categories with promotion count, ordered alphabetically.
+     */
+    public List<Object[]> listDistinctCategoriesWithCount() {
+        return getEntityManager()
+                .createQuery("SELECT p.category, COUNT(p) FROM PromotionEntity p WHERE p.category IS NOT NULL AND TRIM(p.category) <> '' GROUP BY p.category ORDER BY LOWER(p.category)", Object[].class)
+                .getResultList();
+    }
+
+    /**
+     * Count promotions using an exact category name.
+     */
+    public long countByCategory(String category) {
+        return count("category", category);
+    }
+
+    /**
+     * Check if a category exists (exact match).
+     */
+    public boolean categoryExists(String category) {
+        return count("category", category) > 0;
+    }
+
+    /**
+     * Rename category on all promotions that use it.
+     */
+    public long renameCategory(String oldName, String newName) {
+        return update("category = ?1 where category = ?2", newName, oldName);
+    }
+
+    /**
+     * Clear category from all promotions using it (set to null).
+     */
+    public long clearCategory(String categoryName) {
+        return update("category = null where category = ?1", categoryName);
+    }
 }
