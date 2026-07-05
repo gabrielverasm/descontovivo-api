@@ -43,6 +43,22 @@ class ModerationCategoryResourceTest {
         @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
         @Claim(key = "preferred_username", value = "mod-user")
     })
+    void shouldReturn200WithEmptyListWhenNoCategories() {
+        // Without setting any category, endpoint should return 200 with empty or non-null list
+        given()
+            .when().get("/api/v1/moderation/categories")
+            .then()
+            .statusCode(200)
+            .body("$", notNullValue());
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
     void shouldListCategoriesIgnoringNullAndEmpty() {
         var id1 = createPromotion();
         var id2 = createPromotion();

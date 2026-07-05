@@ -128,7 +128,11 @@ public class PromotionRepository implements PanacheRepositoryBase<PromotionEntit
      */
     public List<Object[]> listDistinctCategoriesWithCount() {
         return getEntityManager()
-                .createQuery("SELECT p.category, COUNT(p) FROM PromotionEntity p WHERE p.category IS NOT NULL AND TRIM(p.category) <> '' GROUP BY p.category ORDER BY LOWER(p.category)", Object[].class)
+                .createQuery(
+                        "SELECT p.category, COUNT(p) FROM PromotionEntity p " +
+                        "WHERE p.category IS NOT NULL AND LENGTH(TRIM(p.category)) > 0 " +
+                        "GROUP BY p.category ORDER BY LOWER(p.category)",
+                        Object[].class)
                 .getResultList();
     }
 
