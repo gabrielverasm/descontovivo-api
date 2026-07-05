@@ -24,7 +24,7 @@ public class ModerationCategoryService {
     public List<CategoryResponse> listCategories() {
         return promotionRepository.listDistinctCategoriesWithCount()
                 .stream()
-                .map(row -> new CategoryResponse((String) row[0], (Long) row[1]))
+                .map(row -> new CategoryResponse((String) row[0], ((Number) row[1]).longValue()))
                 .toList();
     }
 
