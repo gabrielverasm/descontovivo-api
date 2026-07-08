@@ -6,7 +6,10 @@ import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import javax.imageio.ImageIO;
 import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
 @ApplicationScoped
@@ -27,7 +30,17 @@ public class ImageProcessingService {
 
     public ProcessedImage process(byte[] originalBytes) {
         try {
-            ImmutableImage image = ImmutableImage.loader().fromBytes(originalBytes);
+            // Use ImageIO instead of scrimage ImageReaders to decode JPEG/PNG.
+            // scrimage's ImageReaders relies on ServiceLoader which is broken in
+            // GraalVM native image (empty registry at runtime).
+            BufferedImage awt = ImageIO.read(new ByteArrayInputStream(originalBytes));
+            if (awt == null) {
+                throw new ImageProcessingException(
+                        "Formato de imagem não suportado ou bytes inválidos. "
+                                + "ImageIO não conseguiu decodificar os bytes fornecidos.", null);
+            }
+
+            ImmutableImage image = ImmutableImage.fromAwt(awt);
 
             int originalWidth = image.width;
             int originalHeight = image.height;
@@ -44,6 +57,8 @@ public class ImageProcessingService {
 
             return new ProcessedImage(webpBytes, "image/webp", "webp");
 
+        } catch (ImageProcessingException e) {
+            throw e;
         } catch (IOException e) {
             throw new ImageProcessingException("Falha ao processar imagem: " + e.getMessage(), e);
         }

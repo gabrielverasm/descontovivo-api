@@ -113,12 +113,50 @@ class ImageProcessingServiceTest {
     void shouldRejectInvalidImageBytes() {
         byte[] garbage = "this is not an image at all".getBytes();
 
-        assertThrows(ImageProcessingException.class, () -> service.process(garbage));
+        ImageProcessingException ex = assertThrows(ImageProcessingException.class, () -> service.process(garbage));
+        assertTrue(ex.getMessage().contains("não suportado") || ex.getMessage().contains("inválidos"),
+                "Error message should mention unsupported format or invalid bytes");
+    }
+
+    @Test
+    void shouldRejectEmptyBytes() {
+        byte[] empty = new byte[0];
+
+        assertThrows(ImageProcessingException.class, () -> service.process(empty));
     }
 
     @Test
     void shouldUseConfiguredTargetSize() {
         assertEquals(300, service.getTargetSize());
+    }
+
+    @Test
+    void shouldDecodeJpegViaImageIOPath() throws IOException {
+        // Explicitly verify that the ImageIO-based path works for JPEG
+        byte[] jpegBytes = createTestJpeg(600, 400);
+
+        ProcessedImage result = service.process(jpegBytes);
+
+        assertNotNull(result);
+        assertEquals("image/webp", result.contentType());
+        assertTrue(result.bytes().length > 0, "WebP output should have bytes");
+
+        // Verify output dimensions via scrimage loader (works in JVM tests)
+        ImmutableImage output = ImmutableImage.loader().fromBytes(result.bytes());
+        assertEquals(300, output.width);
+        assertEquals(300, output.height);
+    }
+
+    @Test
+    void shouldDecodePngViaImageIOPath() throws IOException {
+        // Explicitly verify that the ImageIO-based path works for PNG
+        byte[] pngBytes = createTestPng(800, 600);
+
+        ProcessedImage result = service.process(pngBytes);
+
+        assertNotNull(result);
+        assertEquals("image/webp", result.contentType());
+        assertTrue(result.bytes().length > 0, "WebP output should have bytes");
     }
 
     // --- Helpers ---

@@ -334,7 +334,7 @@ Cannot run program "/tmp/cwebp...binary": Exec failed, error: 2 (No such file or
 
 O binário bundled é **statically linked** — não precisa de libs compartilhadas do sistema. Só precisa ser extraído corretamente para `/tmp` com permissão de execução.
 
-### scrimage-webp runtime initialization (v0.1.3)
+### scrimage-webp runtime initialization (v0.1.3 → v0.1.4)
 
 Incluir os resources (`dist_webp_binaries/**`) **não é suficiente**. As classes do scrimage-webp possuem static initializers que:
 
@@ -350,36 +350,44 @@ Se essas classes são inicializadas em **build-time** (comportamento padrão do 
 |-----------|-----------|-----------|
 | v0.1.2 | Incluiu `dist_webp_binaries/**` nos resources | Binário native executou mas falhou em runtime: `Cannot run program "/tmp/cwebp...binary"` |
 | v0.1.3 (1ª tentativa) | Adicionou `--initialize-at-run-time` para handlers explícitos (`CWebpHandler`, `DWebpHandler`, `WebpHandler`, `WebpWriter`) | Native **build** falhou: GraalVM apontou `DWebpHandler` no image heap via `WebpImageReader.handler` dentro de `ImageReaders` |
-| v0.1.3 (correção final) | Runtime init para **pacote** `com.sksamuel.scrimage.webp` + **classe** `com.sksamuel.scrimage.nio.ImageReaders` | ✅ Cobre todos os handlers + o registry estático |
+| v0.1.3 (correção final) | Runtime init para **pacote** `com.sksamuel.scrimage.webp` + **classe** `com.sksamuel.scrimage.nio.ImageReaders` | ✅ Build ok, mas JPEG parsing falhou em runtime (ImageReaders registry vazio) |
+| v0.1.4 | **Substituiu scrimage ImageReaders por `javax.imageio.ImageIO`** para decodificação JPEG/PNG. Removeu runtime-init de `ImageReaders`. | ✅ JPEG/PNG decodifica via ImageIO (funciona nativamente); scrimage usado apenas para resize + WebP output |
 
-#### Causa raiz detalhada
+#### Causa raiz detalhada (v0.1.3)
 
 O GraalVM inicializa `ImageReaders` (scrimage-core) em build-time. Essa classe mantém uma lista estática de image readers carregados via ServiceLoader — incluindo `WebpImageReader`. O `WebpImageReader` instancia `DWebpHandler` no construtor, que por sua vez extrai o binário para `/tmp`. Resultado: um objeto `DWebpHandler` com path temporário de build fica gravado no image heap.
 
-Erro fatal do GraalVM:
+A solução v0.1.3 de deferir `ImageReaders` para runtime resolveu o erro de image heap, mas deixou o registry do scrimage **vazio** em runtime — o ServiceLoader não encontra os readers dentro do native image. Resultado: `ImmutableImage.loader().fromBytes()` falha com "Image parsing failed for JPEG".
 
+#### Solução definitiva (v0.1.4)
+
+**Não usar scrimage para leitura/parsing de imagens.**
+
+```java
+// ANTES (v0.1.3 - quebrado em native):
+ImmutableImage image = ImmutableImage.loader().fromBytes(originalBytes);
+
+// DEPOIS (v0.1.4 - funcional em native):
+BufferedImage awt = ImageIO.read(new ByteArrayInputStream(originalBytes));
+if (awt == null) {
+    throw new ImageProcessingException("Formato não suportado");
+}
+ImmutableImage image = ImmutableImage.fromAwt(awt);
 ```
-An object of type 'com.sksamuel.scrimage.webp.DWebpHandler' was found in the image heap.
-This type, however, is marked for initialization at image run time.
 
-Object was reached by
-  reading field com.sksamuel.scrimage.webp.WebpImageReader.handler
-  of constant com.sksamuel.scrimage.webp.WebpImageReader
-  embedded in java.util.ArrayList
-  embedded in com.sksamuel.scrimage.nio.ImageReaders.read(ImageReaders.java:37)
-```
+- `javax.imageio.ImageIO` usa providers registrados em build-time pelo GraalVM (JPEG, PNG, GIF, BMP nativamente suportados).
+- `ImmutableImage.fromAwt(BufferedImage)` cria um wrapper scrimage sem passar por ImageReaders.
+- scrimage é usado **apenas** para operações de transformação (`.fit()`, `.cover()`) e saída WebP (`WebpWriter`).
 
-#### Configuração final
+#### Configuração final (v0.1.4)
 
 ```properties
-quarkus.native.additional-build-args=\
-  --initialize-at-run-time=org.apache.http.impl.auth.NTLMEngineImpl,\
-  --initialize-at-run-time=com.sksamuel.scrimage.webp,\
-  --initialize-at-run-time=com.sksamuel.scrimage.nio.ImageReaders
+quarkus.native.additional-build-args=--initialize-at-run-time=org.apache.http.impl.auth.NTLMEngineImpl,--initialize-at-run-time=com.sksamuel.scrimage.webp
 ```
 
-- `com.sksamuel.scrimage.webp` — pacote inteiro: cobre `CWebpHandler`, `DWebpHandler`, `WebpHandler`, `WebpWriter`, `WebpImageReader`, `Gif2WebpHandler`, `Gif2WebpWriter`.
-- `com.sksamuel.scrimage.nio.ImageReaders` — o registry/lista estática que carregava `WebpImageReader` em build-time.
+- `com.sksamuel.scrimage.webp` — pacote inteiro: cobre `CWebpHandler`, `DWebpHandler`, `WebpHandler`, `WebpWriter`, `WebpImageReader`, `Gif2WebpHandler`, `Gif2WebpWriter`. Necessário porque os handlers extraem binários para `/tmp` no static initializer.
+- `com.sksamuel.scrimage.nio.ImageReaders` — **removido**. Não é mais usado no pipeline de import.
+- `org.apache.http.impl.auth.NTLMEngineImpl` — resolve `SecureRandom` no class initializer do Apache HTTP Client.
 
 > **Nota:** Usamos argumentos `--initialize-at-run-time` separados por vírgula (separador de argumentos do Quarkus) ao invés de uma lista dentro de um único argumento, para evitar problemas de escape de vírgula no parser do Quarkus.
 
