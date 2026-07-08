@@ -336,27 +336,50 @@ O binário bundled é **statically linked** — não precisa de libs compartilha
 
 ### scrimage-webp runtime initialization (v0.1.3)
 
-Incluir os resources (`dist_webp_binaries/**`) **não é suficiente**. As classes do scrimage-webp (`CWebpHandler`, `DWebpHandler`, `WebpHandler`, `WebpWriter`) possuem static initializers que:
+Incluir os resources (`dist_webp_binaries/**`) **não é suficiente**. As classes do scrimage-webp possuem static initializers que:
 
 1. Localizam o binário `cwebp`/`dwebp` no classpath via `getResourceAsStream()`.
 2. Extraem o binário para um arquivo temporário em `/tmp` (e.g., `/tmp/cwebp5425043227069466810binary`).
 3. Armazenam o **path absoluto** do arquivo temporário em campos estáticos.
 
-Se essas classes são inicializadas em **build-time** (comportamento padrão do GraalVM), o path temporário criado **durante o build** fica gravado ("baked") no binário native. Em runtime, esse arquivo não existe no container, causando:
+Se essas classes são inicializadas em **build-time** (comportamento padrão do GraalVM), o path temporário criado **durante o build** fica gravado ("baked") no binário native. Em runtime, esse arquivo não existe no container.
+
+#### Evolução do fix
+
+| Tentativa | O que fez | Resultado |
+|-----------|-----------|-----------|
+| v0.1.2 | Incluiu `dist_webp_binaries/**` nos resources | Binário native executou mas falhou em runtime: `Cannot run program "/tmp/cwebp...binary"` |
+| v0.1.3 (1ª tentativa) | Adicionou `--initialize-at-run-time` para handlers explícitos (`CWebpHandler`, `DWebpHandler`, `WebpHandler`, `WebpWriter`) | Native **build** falhou: GraalVM apontou `DWebpHandler` no image heap via `WebpImageReader.handler` dentro de `ImageReaders` |
+| v0.1.3 (correção final) | Runtime init para **pacote** `com.sksamuel.scrimage.webp` + **classe** `com.sksamuel.scrimage.nio.ImageReaders` | ✅ Cobre todos os handlers + o registry estático |
+
+#### Causa raiz detalhada
+
+O GraalVM inicializa `ImageReaders` (scrimage-core) em build-time. Essa classe mantém uma lista estática de image readers carregados via ServiceLoader — incluindo `WebpImageReader`. O `WebpImageReader` instancia `DWebpHandler` no construtor, que por sua vez extrai o binário para `/tmp`. Resultado: um objeto `DWebpHandler` com path temporário de build fica gravado no image heap.
+
+Erro fatal do GraalVM:
 
 ```
-Cannot run program "/tmp/cwebp5425043227069466810binary": Exec failed, error: 2 (No such file or directory)
+An object of type 'com.sksamuel.scrimage.webp.DWebpHandler' was found in the image heap.
+This type, however, is marked for initialization at image run time.
+
+Object was reached by
+  reading field com.sksamuel.scrimage.webp.WebpImageReader.handler
+  of constant com.sksamuel.scrimage.webp.WebpImageReader
+  embedded in java.util.ArrayList
+  embedded in com.sksamuel.scrimage.nio.ImageReaders.read(ImageReaders.java:37)
 ```
 
-**Correção:** forçar inicialização em runtime para que a extração do binário aconteça no container:
+#### Configuração final
 
 ```properties
-quarkus.native.additional-build-args=--initialize-at-run-time=org.apache.http.impl.auth.NTLMEngineImpl,\
-  --initialize-at-run-time=com.sksamuel.scrimage.webp.CWebpHandler,\
-  --initialize-at-run-time=com.sksamuel.scrimage.webp.DWebpHandler,\
-  --initialize-at-run-time=com.sksamuel.scrimage.webp.WebpHandler,\
-  --initialize-at-run-time=com.sksamuel.scrimage.webp.WebpWriter
+quarkus.native.additional-build-args=\
+  --initialize-at-run-time=org.apache.http.impl.auth.NTLMEngineImpl,\
+  --initialize-at-run-time=com.sksamuel.scrimage.webp,\
+  --initialize-at-run-time=com.sksamuel.scrimage.nio.ImageReaders
 ```
+
+- `com.sksamuel.scrimage.webp` — pacote inteiro: cobre `CWebpHandler`, `DWebpHandler`, `WebpHandler`, `WebpWriter`, `WebpImageReader`, `Gif2WebpHandler`, `Gif2WebpWriter`.
+- `com.sksamuel.scrimage.nio.ImageReaders` — o registry/lista estática que carregava `WebpImageReader` em build-time.
 
 > **Nota:** Usamos argumentos `--initialize-at-run-time` separados por vírgula (separador de argumentos do Quarkus) ao invés de uma lista dentro de um único argumento, para evitar problemas de escape de vírgula no parser do Quarkus.
 
