@@ -2,7 +2,7 @@
 
 ## Versão atual
 
-**0.1.2** (patch)
+**0.1.3** (patch)
 
 ## Convenção
 
@@ -29,6 +29,7 @@ Usamos [SemVer](https://semver.org/) simplificado:
 
 | Versão | Data | Descrição |
 |--------|------|-----------|
+| 0.1.3 | 2026-07-08 | Fix scrimage-webp runtime initialization in native image (defer CWebpHandler/WebpWriter to runtime) |
 | 0.1.2 | 2026-07-08 | Fix WebP/cwebp binary in native image (include scrimage resources) |
 | 0.1.1 | 2026-07-08 | Fix native image JSON serialization + AWT support |
 | 0.1.0 | 2026-07-05 | MVP inicial |
