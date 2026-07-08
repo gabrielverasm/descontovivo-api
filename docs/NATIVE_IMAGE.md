@@ -334,6 +334,32 @@ Cannot run program "/tmp/cwebp...binary": Exec failed, error: 2 (No such file or
 
 O binário bundled é **statically linked** — não precisa de libs compartilhadas do sistema. Só precisa ser extraído corretamente para `/tmp` com permissão de execução.
 
+### scrimage-webp runtime initialization (v0.1.3)
+
+Incluir os resources (`dist_webp_binaries/**`) **não é suficiente**. As classes do scrimage-webp (`CWebpHandler`, `DWebpHandler`, `WebpHandler`, `WebpWriter`) possuem static initializers que:
+
+1. Localizam o binário `cwebp`/`dwebp` no classpath via `getResourceAsStream()`.
+2. Extraem o binário para um arquivo temporário em `/tmp` (e.g., `/tmp/cwebp5425043227069466810binary`).
+3. Armazenam o **path absoluto** do arquivo temporário em campos estáticos.
+
+Se essas classes são inicializadas em **build-time** (comportamento padrão do GraalVM), o path temporário criado **durante o build** fica gravado ("baked") no binário native. Em runtime, esse arquivo não existe no container, causando:
+
+```
+Cannot run program "/tmp/cwebp5425043227069466810binary": Exec failed, error: 2 (No such file or directory)
+```
+
+**Correção:** forçar inicialização em runtime para que a extração do binário aconteça no container:
+
+```properties
+quarkus.native.additional-build-args=--initialize-at-run-time=org.apache.http.impl.auth.NTLMEngineImpl,\
+  --initialize-at-run-time=com.sksamuel.scrimage.webp.CWebpHandler,\
+  --initialize-at-run-time=com.sksamuel.scrimage.webp.DWebpHandler,\
+  --initialize-at-run-time=com.sksamuel.scrimage.webp.WebpHandler,\
+  --initialize-at-run-time=com.sksamuel.scrimage.webp.WebpWriter
+```
+
+> **Nota:** Usamos argumentos `--initialize-at-run-time` separados por vírgula (separador de argumentos do Quarkus) ao invés de uma lista dentro de um único argumento, para evitar problemas de escape de vírgula no parser do Quarkus.
+
 ## Arquivos relacionados
 
 - `src/main/docker/Dockerfile.native` — Dockerfile para imagem native
