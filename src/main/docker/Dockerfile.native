@@ -16,6 +16,10 @@ FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6
 
 WORKDIR /work/
 
+# Install system libraries required by AWT/Java2D (used by scrimage for image processing)
+RUN microdnf install -y freetype fontconfig \
+    && microdnf clean all
+
 # Copiar binário native e shared libs geradas pelo native-image (AWT para scrimage)
 COPY target/*-runner /work/application
 COPY target/lib*.so /work/

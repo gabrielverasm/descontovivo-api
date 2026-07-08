@@ -1,11 +1,19 @@
 package br.com.descontovivo.promotion.api;
 
 import br.com.descontovivo.promotion.entity.PromotionEntity;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+/**
+ * Full detail of a promotion.
+ *
+ * <p>{@code @RegisterForReflection} is required because some endpoints return this
+ * record inside a {@code Response.status().entity()} body.
+ */
+@RegisterForReflection
 public record PromotionDetailResponse(
         UUID id,
         String slug,

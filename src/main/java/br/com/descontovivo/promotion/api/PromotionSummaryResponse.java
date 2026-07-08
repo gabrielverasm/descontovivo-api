@@ -1,11 +1,19 @@
 package br.com.descontovivo.promotion.api;
 
 import br.com.descontovivo.promotion.entity.PromotionEntity;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+/**
+ * Summary of a promotion for listing pages.
+ *
+ * <p>{@code @RegisterForReflection} is required because this record is nested inside
+ * {@link PagedResponse} (a generic type) and returned via endpoints.
+ */
+@RegisterForReflection
 public record PromotionSummaryResponse(
         UUID id,
         String slug,
@@ -28,6 +36,7 @@ public record PromotionSummaryResponse(
         OffsetDateTime publishedAt,
         String authorUsername
 ) {
+    @RegisterForReflection
     public record StoreRef(String slug, String name) {}
 
     public static PromotionSummaryResponse from(PromotionEntity e) {
