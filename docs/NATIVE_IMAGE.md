@@ -318,6 +318,22 @@ quarkus.native.additional-build-args=--initialize-at-run-time=org.apache.http.im
 
 Isso resolve o `SecureRandom` no class initializer do Apache HTTP Client (dependência transitiva do AWS SDK S3).
 
+### scrimage-webp binary resources
+
+Em `application.properties`:
+
+```properties
+quarkus.native.resources.includes=dist_webp_binaries/**
+```
+
+O GraalVM native-image **não inclui resources de JARs de dependência** por padrão. A lib scrimage-webp extrai o binário `cwebp` (e `dwebp`) do classpath via `Class.getResourceAsStream()` e escreve em `/tmp` para executar. Sem essa configuração, `getResourceAsStream()` retorna `null` e o binário extraído é inválido/vazio, causando:
+
+```
+Cannot run program "/tmp/cwebp...binary": Exec failed, error: 2 (No such file or directory)
+```
+
+O binário bundled é **statically linked** — não precisa de libs compartilhadas do sistema. Só precisa ser extraído corretamente para `/tmp` com permissão de execução.
+
 ## Arquivos relacionados
 
 - `src/main/docker/Dockerfile.native` — Dockerfile para imagem native
