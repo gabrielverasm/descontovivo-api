@@ -1,9 +1,17 @@
 package br.com.descontovivo.shared.api;
 
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 import java.util.List;
 
+/**
+ * Paginated response wrapper.
+ *
+ * <p>{@code @RegisterForReflection} is required because this generic record may not
+ * have its type parameters resolved at build time in native image.
+ */
+@RegisterForReflection
 @Schema(description = "Paginated response wrapper")
 public record PagedResponse<T>(
         List<T> content,

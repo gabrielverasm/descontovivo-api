@@ -739,6 +739,97 @@ class AdminImportResourceTest {
             .body("authorUsername", is("gabrielveras"));
     }
 
+    // --- Serialization / DryRun with real-world payload tests ---
+
+    @Test
+    void shouldReturnFullJsonResponseOnDryRunWithAmazonPayload() {
+        var sourceId = "amz-dry-" + uid();
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .queryParam("dryRun", true)
+            .body("""
+                {
+                  "items": [{
+                    "sourceId": "%s",
+                    "title": "Echo Dot 5ª Geração com Alexa",
+                    "marketplace": "AMAZON",
+                    "storeName": "Amazon",
+                    "sellerName": null,
+                    "soldBy": null,
+                    "deliveredBy": null,
+                    "productUrl": "https://link.amazon/B0aAd8l9g",
+                    "imageUrl": "https://m.media-amazon.com/images/I/71-hdigva3L._AC_SY300_SX300_QL70_ML2_.jpg",
+                    "currentPrice": 284.05,
+                    "originalPrice": 399.00,
+                    "publishAt": "2026-07-02T08:30:00-03:00"
+                  }]
+                }
+            """.formatted(sourceId))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("dryRun", is(true))
+            .body("created", is(1))
+            .body("skipped", is(0))
+            .body("errors", empty())
+            .body("batchId", notNullValue());
+    }
+
+    @Test
+    void shouldReturnErrorsAsJsonOnDryRunWithInvalidItem() {
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .queryParam("dryRun", true)
+            .body("""
+                {
+                  "items": [{
+                    "sourceId": "invalid-item",
+                    "title": "",
+                    "marketplace": "",
+                    "storeName": "",
+                    "productUrl": "",
+                    "imageUrl": "",
+                    "currentPrice": 0
+                  }]
+                }
+            """)
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("dryRun", is(true))
+            .body("created", is(0))
+            .body("errors.size()", greaterThan(0))
+            .body("errors[0].sourceId", is("invalid-item"))
+            .body("errors[0].field", notNullValue())
+            .body("errors[0].message", notNullValue());
+    }
+
+    @Test
+    void shouldSerializeAdminImportResponseFieldsCorrectly() {
+        // This test verifies that ALL fields of AdminImportResponse are serialized
+        // (not returned as empty {} due to missing reflection metadata in native image)
+        var sourceId = "serial-check-" + uid();
+        var response = given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .queryParam("dryRun", true)
+            .body(validImportBody(sourceId))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .extract().jsonPath();
+
+        // Verify all fields are present and non-null in the response
+        assertNotNull(response.getString("batchId"), "batchId should not be null");
+        assertNotNull(response.getBoolean("dryRun"), "dryRun should not be null");
+        assertEquals(true, response.getBoolean("dryRun"));
+        assertEquals(1, response.getInt("created"));
+        assertEquals(0, response.getInt("skipped"));
+        assertNotNull(response.getList("errors"), "errors list should not be null");
+    }
+
     // --- Helpers ---
 
     private static String uid() {

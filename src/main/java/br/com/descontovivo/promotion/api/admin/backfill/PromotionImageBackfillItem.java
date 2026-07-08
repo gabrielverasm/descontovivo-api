@@ -1,7 +1,16 @@
 package br.com.descontovivo.promotion.api.admin.backfill;
 
+import io.quarkus.runtime.annotations.RegisterForReflection;
+
 import java.util.UUID;
 
+/**
+ * Individual item detail in {@link PromotionImageBackfillResponse}.
+ *
+ * <p>{@code @RegisterForReflection} is required because this record is serialized
+ * as part of a {@code List} inside a {@code Response.ok()} body.
+ */
+@RegisterForReflection
 public record PromotionImageBackfillItem(
         UUID promotionId,
         String slug,
