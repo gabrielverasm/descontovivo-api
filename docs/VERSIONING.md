@@ -2,7 +2,7 @@
 
 ## Versão atual
 
-**0.2.0** (minor)
+**0.2.1** (patch)
 
 ## Convenção
 
@@ -29,6 +29,7 @@ Usamos [SemVer](https://semver.org/) simplificado:
 
 | Versão | Data | Descrição |
 |--------|------|-----------|
+| 0.2.1 | 2026-07-09 | Fix admin import with pre-uploaded imageKey bypass |
 | 0.2.0 | 2026-07-08 | Add availability and priceSignal fields to AdminImportItemRequest; title normalization server-side |
 | 0.1.4 | 2026-07-08 | Fix native image import: decode JPEG/PNG via ImageIO instead of scrimage ImageReaders |
 | 0.1.3 | 2026-07-08 | Fix scrimage-webp runtime initialization in native image (defer CWebpHandler/WebpWriter to runtime) |

@@ -1,6 +1,7 @@
 package br.com.descontovivo.promotion.api.admin;
 
 import br.com.descontovivo.promotion.support.SlugGenerator;
+import br.com.descontovivo.upload.mock.MockR2StorageService;
 import br.com.descontovivo.upload.mock.MockRemoteImageImportService;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;
@@ -40,6 +41,9 @@ class AdminImportResourceTest {
 
     @Inject
     MockRemoteImageImportService mockImageImport;
+
+    @Inject
+    MockR2StorageService mockR2Storage;
 
     @BeforeEach
     void setUp() {
@@ -828,6 +832,221 @@ class AdminImportResourceTest {
         assertEquals(1, response.getInt("created"));
         assertEquals(0, response.getInt("skipped"));
         assertNotNull(response.getList("errors"), "errors list should not be null");
+    }
+
+
+    // --- imageKey bypass tests (pre-uploaded images) ---
+
+    @Test
+    void shouldBypassRemoteImportWhenImageKeyIsProvided() {
+        var sourceId = "imgkey-bypass-" + uid();
+        var title = "ImageKey Bypass Test " + sourceId;
+        var imageKey = "temp/promotions/2026/07/" + UUID.randomUUID() + ".webp";
+        mockImageImport.clearImportedUrls();
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .body("""
+                {
+                  "items": [{
+                    "sourceId": "%s",
+                    "title": "%s",
+                    "marketplace": "AMAZON",
+                    "storeName": "Amazon",
+                    "productUrl": "https://example.com/imgkey-%s",
+                    "imageUrl": "https://img.descontovivo.com.br/%s",
+                    "imageKey": "%s",
+                    "currentPrice": 199.90
+                  }]
+                }
+            """.formatted(sourceId, title, sourceId, imageKey, imageKey))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("created", is(1))
+            .body("errors", empty());
+
+        // RemoteImageImportService should NOT have been called
+        assertTrue(mockImageImport.getImportedUrls().isEmpty(),
+                "Should not call remoteImageImport when imageKey is provided");
+
+        // Promotion should be saved with final R2 URL (promoted from temp)
+        var slug = SlugGenerator.fromTitle(title);
+        given()
+            .when().get("/api/v1/promotions/" + slug)
+            .then()
+            .statusCode(200)
+            .body("imageUrl", startsWith("https://img.descontovivo.com.br/promotions/"))
+            .body("imageUrl", endsWith(".webp"))
+            .body("imageUrl", not(containsString("temp/")));
+    }
+
+    @Test
+    void shouldFallbackToRemoteImportWhenImageKeyIsAbsent() {
+        var sourceId = "imgkey-fallback-" + uid();
+        mockImageImport.clearImportedUrls();
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .body("""
+                {
+                  "items": [{
+                    "sourceId": "%s",
+                    "title": "Fallback Test %s",
+                    "marketplace": "AMAZON",
+                    "storeName": "Amazon",
+                    "productUrl": "https://example.com/fallback-%s",
+                    "imageUrl": "https://images.example.com/external.jpg",
+                    "currentPrice": 149.90
+                  }]
+                }
+            """.formatted(sourceId, sourceId, sourceId))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("created", is(1))
+            .body("errors", empty());
+
+        // RemoteImageImportService SHOULD have been called
+        assertEquals(1, mockImageImport.getImportedUrls().size(),
+                "Should call remoteImageImport when imageKey is absent");
+        assertTrue(mockImageImport.getImportedUrls().get(0).contains("images.example.com"));
+    }
+
+    @Test
+    void shouldFallbackToRemoteImportWhenImageKeyIsInvalid() {
+        var sourceId = "imgkey-invalid-" + uid();
+        mockImageImport.clearImportedUrls();
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .body("""
+                {
+                  "items": [{
+                    "sourceId": "%s",
+                    "title": "Invalid Key Test %s",
+                    "marketplace": "AMAZON",
+                    "storeName": "Amazon",
+                    "productUrl": "https://example.com/invalid-key-%s",
+                    "imageUrl": "https://images.example.com/fallback.jpg",
+                    "imageKey": "../../../etc/passwd",
+                    "currentPrice": 99.90
+                  }]
+                }
+            """.formatted(sourceId, sourceId, sourceId))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("created", is(1))
+            .body("errors", empty());
+
+        // Should have fallen back to remote import since imageKey was invalid
+        assertEquals(1, mockImageImport.getImportedUrls().size(),
+                "Invalid imageKey should fallback to remote import");
+    }
+
+    @Test
+    void shouldRejectPathTraversalInImageKey() {
+        var sourceId = "imgkey-traversal-" + uid();
+        mockImageImport.clearImportedUrls();
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .body("""
+                {
+                  "items": [{
+                    "sourceId": "%s",
+                    "title": "Traversal Test %s",
+                    "marketplace": "AMAZON",
+                    "storeName": "Amazon",
+                    "productUrl": "https://example.com/traversal-%s",
+                    "imageUrl": "https://images.example.com/safe.jpg",
+                    "imageKey": "temp/promotions/../../secrets/key.webp",
+                    "currentPrice": 99.90
+                  }]
+                }
+            """.formatted(sourceId, sourceId, sourceId))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("created", is(1))
+            .body("errors", empty());
+
+        // Should fallback to remote import (path traversal rejected by regex)
+        assertEquals(1, mockImageImport.getImportedUrls().size(),
+                "Path traversal imageKey should fallback to remote import");
+    }
+
+    @Test
+    void shouldSkipUrlValidationOnDryRunWhenImageKeyIsValid() {
+        var sourceId = "imgkey-dryrun-" + uid();
+        var imageKey = "temp/promotions/2026/07/" + UUID.randomUUID() + ".webp";
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .queryParam("dryRun", true)
+            .body("""
+                {
+                  "items": [{
+                    "sourceId": "%s",
+                    "title": "DryRun ImageKey Test",
+                    "marketplace": "AMAZON",
+                    "storeName": "Amazon",
+                    "productUrl": "https://example.com/dryrun-key-%s",
+                    "imageUrl": "https://img.descontovivo.com.br/%s",
+                    "imageKey": "%s",
+                    "currentPrice": 199.90
+                  }]
+                }
+            """.formatted(sourceId, sourceId, imageKey, imageKey))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("dryRun", is(true))
+            .body("created", is(1))
+            .body("errors", empty());
+    }
+
+    @Test
+    void shouldFailWhenR2PromoteFails() {
+        var sourceId = "imgkey-r2fail-" + uid();
+        var imageKey = "temp/promotions/2026/07/" + UUID.randomUUID() + ".webp";
+        mockR2Storage.setShouldFailOnPromote(true);
+
+        try {
+            given()
+                .contentType(ContentType.JSON)
+                .header("X-Admin-Import-Token", "test-secret-token-123")
+                .body("""
+                    {
+                      "items": [{
+                        "sourceId": "%s",
+                        "title": "R2 Promote Fail Test",
+                        "marketplace": "AMAZON",
+                        "storeName": "Amazon",
+                        "productUrl": "https://example.com/r2fail-%s",
+                        "imageUrl": "https://img.descontovivo.com.br/%s",
+                        "imageKey": "%s",
+                        "currentPrice": 199.90
+                      }]
+                    }
+                """.formatted(sourceId, sourceId, imageKey, imageKey))
+                .when().post(IMPORT_PATH)
+                .then()
+                .statusCode(200)
+                .body("created", is(0))
+                .body("errors.size()", is(1))
+                .body("errors[0].sourceId", is(sourceId))
+                .body("errors[0].field", is("imageKey"))
+                .body("errors[0].message", containsString("promover imagem"));
+        } finally {
+            mockR2Storage.setShouldFailOnPromote(false);
+        }
     }
 
     // --- Helpers ---
