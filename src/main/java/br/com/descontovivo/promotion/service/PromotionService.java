@@ -80,7 +80,7 @@ public class PromotionService {
         var now = OffsetDateTime.now();
         var entity = new PromotionEntity();
         entity.setSlug(slug);
-        entity.setTitle(request.title());
+        entity.setTitle(PromotionNormalizer.normalizeTitle(request.title()));
         entity.setUrl(request.url());
         entity.setNormalizedUrl(normalizedUrl);
         entity.setCurrentPrice(request.currentPrice());

@@ -339,7 +339,7 @@ class ModerationResourceTest {
             .then()
             .statusCode(200)
             .body("imageUrl", is(originalImageUrl))
-            .body("title", is("New Title"));
+            .body("title", is("New title"));
 
         assertTrue(mockR2.getDeletedKeys().isEmpty(), "Should NOT touch image when not changing it");
     }
