@@ -12,6 +12,7 @@ import br.com.descontovivo.promotion.repository.PromotionRepository;
 import br.com.descontovivo.promotion.support.PromotionNormalizer;
 import br.com.descontovivo.promotion.support.SlugGenerator;
 import br.com.descontovivo.store.service.StoreResolver;
+import br.com.descontovivo.upload.service.R2StorageService;
 import br.com.descontovivo.upload.service.RemoteImageImportService;
 import br.com.descontovivo.upload.service.RemoteImageImportService.ImportedImage;
 import br.com.descontovivo.upload.service.RemoteImageImportService.RemoteImageException;
@@ -25,6 +26,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.regex.Pattern;
 
 @ApplicationScoped
 public class AdminImportService {
@@ -33,19 +35,27 @@ public class AdminImportService {
     private static final String SOURCE = "ADMIN_JSON_IMPORT";
     private static final ZoneId SAO_PAULO = ZoneId.of("America/Sao_Paulo");
 
+    /** Only accept imageKey with safe characters and expected prefix. */
+    private static final Pattern SAFE_IMAGE_KEY = Pattern.compile(
+            "^temp/promotions/\\d{4}/\\d{2}/[a-f0-9\\-]+\\.webp$"
+    );
+
     private final PromotionRepository promotionRepository;
     private final StoreResolver storeResolver;
     private final RemoteImageImportService remoteImageImportService;
+    private final R2StorageService r2StorageService;
 
     @ConfigProperty(name = "admin.import.default-author", defaultValue = "gabrielveras")
     String defaultAuthor;
 
     public AdminImportService(PromotionRepository promotionRepository,
                               StoreResolver storeResolver,
-                              RemoteImageImportService remoteImageImportService) {
+                              RemoteImageImportService remoteImageImportService,
+                              R2StorageService r2StorageService) {
         this.promotionRepository = promotionRepository;
         this.storeResolver = storeResolver;
         this.remoteImageImportService = remoteImageImportService;
+        this.r2StorageService = r2StorageService;
     }
 
     @Transactional
@@ -105,22 +115,38 @@ public class AdminImportService {
             }
 
             if (!dryRun) {
-                // Import image from external URL to R2
+                // If imageKey is provided (already uploaded by UI), promote from temp and skip remote import
                 ImportedImage importedImage;
-                try {
-                    importedImage = remoteImageImportService.importImage(item.imageUrl());
-                } catch (RemoteImageException e) {
-                    errors.add(new AdminImportError(item.sourceId(), "imageUrl", e.getMessage()));
-                    continue;
+                if (hasValidImageKey(item.imageKey())) {
+                    try {
+                        String finalKey = r2StorageService.promoteImage(item.imageKey());
+                        String publicUrl = r2StorageService.buildPublicUrl(finalKey);
+                        importedImage = new ImportedImage(finalKey, publicUrl, "image/webp", 0);
+                        LOG.infof("Image bypassed remote import (pre-uploaded): %s -> %s", item.imageKey(), finalKey);
+                    } catch (Exception e) {
+                        errors.add(new AdminImportError(item.sourceId(), "imageKey",
+                                "Falha ao promover imagem pré-enviada: " + e.getMessage()));
+                        continue;
+                    }
+                } else {
+                    // Import image from external URL to R2
+                    try {
+                        importedImage = remoteImageImportService.importImage(item.imageUrl());
+                    } catch (RemoteImageException e) {
+                        errors.add(new AdminImportError(item.sourceId(), "imageUrl", e.getMessage()));
+                        continue;
+                    }
                 }
                 persist(item, batchId, importStartedAt, normalizedUrl, importedImage, callerUsername);
             } else {
-                // Dry run: validate URL format and host only
-                try {
-                    remoteImageImportService.validateUrlForDryRun(item.imageUrl());
-                } catch (RemoteImageException e) {
-                    errors.add(new AdminImportError(item.sourceId(), "imageUrl", e.getMessage()));
-                    continue;
+                // Dry run: skip validation if imageKey is present (already uploaded)
+                if (!hasValidImageKey(item.imageKey())) {
+                    try {
+                        remoteImageImportService.validateUrlForDryRun(item.imageUrl());
+                    } catch (RemoteImageException e) {
+                        errors.add(new AdminImportError(item.sourceId(), "imageUrl", e.getMessage()));
+                        continue;
+                    }
                 }
             }
             created++;
@@ -219,5 +245,15 @@ public class AdminImportService {
 
     private static boolean isBlank(String s) {
         return s == null || s.isBlank();
+    }
+
+    /**
+     * Validates that imageKey is non-blank and matches the expected format for
+     * pre-uploaded temp images (temp/promotions/YYYY/MM/uuid.webp).
+     * Rejects path traversal, arbitrary paths, and unexpected formats.
+     */
+    private static boolean hasValidImageKey(String imageKey) {
+        if (imageKey == null || imageKey.isBlank()) return false;
+        return SAFE_IMAGE_KEY.matcher(imageKey).matches();
     }
 }

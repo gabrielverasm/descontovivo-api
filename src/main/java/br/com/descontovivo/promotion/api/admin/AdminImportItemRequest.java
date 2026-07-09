@@ -13,6 +13,7 @@ public record AdminImportItemRequest(
         String deliveredBy,
         String productUrl,
         String imageUrl,
+        String imageKey,
         BigDecimal currentPrice,
         BigDecimal originalPrice,
         String coupon,
