@@ -6,6 +6,7 @@ import br.com.descontovivo.promotion.api.admin.AdminImportRequest;
 import br.com.descontovivo.promotion.api.admin.AdminImportResponse;
 import br.com.descontovivo.promotion.entity.OfferAvailability;
 import br.com.descontovivo.promotion.entity.PromotionEntity;
+import br.com.descontovivo.promotion.entity.PromotionPriceSignal;
 import br.com.descontovivo.promotion.entity.PromotionStatus;
 import br.com.descontovivo.promotion.repository.PromotionRepository;
 import br.com.descontovivo.promotion.support.PromotionNormalizer;
@@ -138,7 +139,7 @@ public class AdminImportService {
 
         var entity = new PromotionEntity();
         entity.setSlug(slug);
-        entity.setTitle(item.title());
+        entity.setTitle(PromotionNormalizer.normalizeTitle(item.title()));
         entity.setUrl(item.productUrl());
         entity.setNormalizedUrl(normalizedUrl);
         entity.setCurrentPrice(item.currentPrice());
@@ -147,7 +148,8 @@ public class AdminImportService {
         entity.setImageUrl(importedImage.imageUrl());
         entity.setImageKey(importedImage.imageKey());
         entity.setStatus(PromotionStatus.PUBLISHED);
-        entity.setAvailability(OfferAvailability.AVAILABLE);
+        entity.setAvailability(resolveAvailability(item.availability()));
+        entity.setPriceSignal(resolvePriceSignal(item.priceSignal()));
         entity.setStore(store);
         entity.setCreatedDate(LocalDate.now(SAO_PAULO));
         entity.setCreatedAt(now);
@@ -195,6 +197,24 @@ public class AdminImportService {
             errors.add(new AdminImportError(item.sourceId(), "originalPrice", "originalPrice não pode ser menor que currentPrice"));
         }
         return errors;
+    }
+
+    private static OfferAvailability resolveAvailability(String value) {
+        if (value == null || value.isBlank()) return OfferAvailability.AVAILABLE;
+        try {
+            return OfferAvailability.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return OfferAvailability.AVAILABLE;
+        }
+    }
+
+    private static PromotionPriceSignal resolvePriceSignal(String value) {
+        if (value == null || value.isBlank()) return PromotionPriceSignal.NONE;
+        try {
+            return PromotionPriceSignal.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return PromotionPriceSignal.NONE;
+        }
     }
 
     private static boolean isBlank(String s) {

@@ -107,7 +107,7 @@ public class PromotionModerationService {
     }
 
     private void applyEdits(PromotionEntity entity, ModerationActionRequest req) {
-        if (req.title() != null) entity.setTitle(req.title());
+        if (req.title() != null) entity.setTitle(PromotionNormalizer.normalizeTitle(req.title()));
         if (req.url() != null) {
             entity.setUrl(req.url());
             entity.setNormalizedUrl(PromotionNormalizer.normalizeUrl(req.url()));

@@ -2,6 +2,7 @@ package br.com.descontovivo.promotion.support;
 
 import java.net.URI;
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -32,5 +33,26 @@ public final class PromotionNormalizer {
         } catch (Exception e) {
             return url.trim().toLowerCase().replaceAll("/+$", "");
         }
+    }
+
+    /**
+     * Normaliza o título de uma promoção: trim, reduz espaços múltiplos,
+     * converte para minúsculo (pt-BR) e coloca apenas a primeira letra em maiúsculo.
+     *
+     * Exemplo: "CAPACETE FECHADO PRO TORK" → "Capacete fechado pro tork"
+     */
+    public static String normalizeTitle(String title) {
+        if (title == null || title.isBlank()) return title;
+
+        String normalized = title.trim().replaceAll("\\s+", " ").toLowerCase(Locale.forLanguageTag("pt-BR"));
+
+        for (int i = 0; i < normalized.length(); i++) {
+            if (Character.isLetter(normalized.charAt(i))) {
+                return normalized.substring(0, i)
+                        + Character.toUpperCase(normalized.charAt(i))
+                        + normalized.substring(i + 1);
+            }
+        }
+        return normalized;
     }
 }
