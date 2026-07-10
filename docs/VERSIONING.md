@@ -2,7 +2,7 @@
 
 ## Versão atual
 
-**0.2.1** (patch)
+**0.3.0** (minor)
 
 ## Convenção
 
@@ -27,12 +27,13 @@ Usamos [SemVer](https://semver.org/) simplificado:
 
 ## Histórico
 
-| Versão | Data | Descrição |
-|--------|------|-----------|
-| 0.2.1 | 2026-07-09 | Fix admin import with pre-uploaded imageKey bypass |
-| 0.2.0 | 2026-07-08 | Add availability and priceSignal fields to AdminImportItemRequest; title normalization server-side |
-| 0.1.4 | 2026-07-08 | Fix native image import: decode JPEG/PNG via ImageIO instead of scrimage ImageReaders |
-| 0.1.3 | 2026-07-08 | Fix scrimage-webp runtime initialization in native image (defer CWebpHandler/WebpWriter to runtime) |
-| 0.1.2 | 2026-07-08 | Fix WebP/cwebp binary in native image (include scrimage resources) |
-| 0.1.1 | 2026-07-08 | Fix native image JSON serialization + AWT support |
-| 0.1.0 | 2026-07-05 | MVP inicial |
+| Versão | Data       | Descrição |
+|--------|------------|-----------|
+| 0.3.0  | 2026-07-10 | Trust Signals: novos campos (salesCount, productRating, sellerRating, officialStore, trustSignals) em PromotionSummaryResponse, PromotionDetailResponse e AdminImportItemRequest; migration V12 adiciona colunas; TrustSignalsHelper com parse/serialize JSON e whitelist; exemplo em docs/examples/trust-signals-import-example.json |
+| 0.2.1  | 2026-07-09 | Fix admin import with pre-uploaded imageKey bypass |
+| 0.2.0  | 2026-07-08 | Add availability and priceSignal fields to AdminImportItemRequest; title normalization server-side |
+| 0.1.4  | 2026-07-08 | Fix native image import: decode JPEG/PNG via ImageIO instead of scrimage ImageReaders |
+| 0.1.3  | 2026-07-08 | Fix scrimage-webp runtime initialization in native image (defer CWebpHandler/WebpWriter to runtime) |
+| 0.1.2  | 2026-07-08 | Fix WebP/cwebp binary in native image (include scrimage resources) |
+| 0.1.1  | 2026-07-08 | Fix native image JSON serialization + AWT support |
+| 0.1.0  | 2026-07-05 | MVP inicial |

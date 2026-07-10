@@ -2,6 +2,7 @@ package br.com.descontovivo.promotion.api.admin;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 
 public record AdminImportItemRequest(
         String sourceId,
@@ -21,5 +22,11 @@ public record AdminImportItemRequest(
         String availability,
         String priceSignal,
         OffsetDateTime publishAt,
-        OffsetDateTime verifiedAt
+        OffsetDateTime verifiedAt,
+        // New trust signals fields
+        Integer salesCount,
+        BigDecimal productRating,
+        BigDecimal sellerRating,
+        Boolean officialStore,
+        List<String> trustSignals
 ) {}

@@ -1,0 +1,116 @@
+{
+  "batchId": "test-trust-signals-batch",
+  "items": [
+    {
+      "sourceId": "shopee-001",
+      "title": "Fone de Ouvido Bluetooth Shopee",
+      "marketplace": "SHOPEE",
+      "storeName": "AudioTech Store",
+      "sellerName": "AudioTech",
+      "productUrl": "https://shopee.com.br/fone-bluetooth-001",
+      "imageUrl": "https://cdn.example.com/fone.jpg",
+      "currentPrice": 89.90,
+      "originalPrice": 129.90,
+      "category": "Eletrônicos",
+      "availability": "AVAILABLE",
+      "priceSignal": "GOOD_PRICE",
+      "salesCount": 5334,
+      "productRating": 4.8,
+      "sellerRating": 4.9,
+      "officialStore": true,
+      "trustSignals": [
+        "SHOPEE_GUARANTEE",
+        "OFFICIAL_STORE",
+        "HIGH_SALES",
+        "GOOD_PRODUCT_RATING"
+      ]
+    },
+    {
+      "sourceId": "ml-001",
+      "title": "Smartphone Mercado Livre",
+      "marketplace": "MERCADO_LIVRE",
+      "storeName": "TechPhone",
+      "productUrl": "https://mercadolivre.com.br/smartphone-001",
+      "imageUrl": "https://cdn.example.com/phone.jpg",
+      "currentPrice": 1299.90,
+      "originalPrice": 1599.90,
+      "category": "Celulares",
+      "availability": "AVAILABLE",
+      "salesCount": 10000,
+      "productRating": 4.9,
+      "officialStore": true,
+      "trustSignals": [
+        "MERCADO_LIVRE_COMPRA_GARANTIDA",
+        "MERCADO_LIVRE_FULL",
+        "OFFICIAL_STORE",
+        "MERCADO_LIDER",
+        "HIGH_SALES",
+        "GOOD_PRODUCT_RATING"
+      ]
+    },
+    {
+      "sourceId": "magalu-001",
+      "title": "Notebook Magalu",
+      "marketplace": "MAGALU",
+      "storeName": "Informática Magalu",
+      "productUrl": "https://magalu.com.br/notebook-001",
+      "imageUrl": "https://cdn.example.com/notebook.jpg",
+      "currentPrice": 2599.90,
+      "originalPrice": 2999.90,
+      "category": "Informática",
+      "availability": "AVAILABLE",
+      "salesCount": 5000,
+      "productRating": 4.7,
+      "sellerRating": 4.7,
+      "officialStore": false,
+      "trustSignals": [
+        "MAGALU_GARANTE_COMPRA",
+        "MAGALU_DEVOLUCAO_7_DIAS",
+        "HIGH_SALES",
+        "GOOD_PRODUCT_RATING"
+      ]
+    },
+    {
+      "sourceId": "amazon-001",
+      "title": "Tablet Amazon",
+      "marketplace": "AMAZON",
+      "storeName": "Amazon Brasil",
+      "soldBy": "Amazon",
+      "deliveredBy": "Amazon",
+      "productUrl": "https://amazon.com.br/tablet-001",
+      "imageUrl": "https://cdn.example.com/tablet.jpg",
+      "currentPrice": 899.90,
+      "originalPrice": 1099.90,
+      "category": "Tablets",
+      "availability": "AVAILABLE",
+      "productRating": 4.8,
+      "trustSignals": [
+        "SOLD_BY_PLATFORM",
+        "DELIVERED_BY_PLATFORM",
+        "AMAZON_PRIME",
+        "AMAZON_A_TO_Z_GUARANTEE",
+        "GOOD_PRODUCT_RATING"
+      ]
+    },
+    {
+      "sourceId": "aliexpress-001",
+      "title": "Smartwatch AliExpress",
+      "marketplace": "ALIEXPRESS",
+      "storeName": "ChinaTech Direct",
+      "productUrl": "https://aliexpress.com/smartwatch-001",
+      "imageUrl": "https://cdn.example.com/watch.jpg",
+      "currentPrice": 199.90,
+      "originalPrice": 299.90,
+      "category": "Relógios",
+      "availability": "AVAILABLE",
+      "salesCount": 5000,
+      "productRating": 4.8,
+      "trustSignals": [
+        "ALIEXPRESS_BUYER_PROTECTION",
+        "ALIEXPRESS_FREE_RETURN",
+        "HIGH_SALES",
+        "GOOD_PRODUCT_RATING"
+      ]
+    }
+  ]
+}

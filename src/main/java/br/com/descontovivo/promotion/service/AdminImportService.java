@@ -11,6 +11,7 @@ import br.com.descontovivo.promotion.entity.PromotionStatus;
 import br.com.descontovivo.promotion.repository.PromotionRepository;
 import br.com.descontovivo.promotion.support.PromotionNormalizer;
 import br.com.descontovivo.promotion.support.SlugGenerator;
+import br.com.descontovivo.promotion.support.TrustSignalsHelper;
 import br.com.descontovivo.store.service.StoreResolver;
 import br.com.descontovivo.upload.service.R2StorageService;
 import br.com.descontovivo.upload.service.RemoteImageImportService;
@@ -192,6 +193,16 @@ public class AdminImportService {
         entity.setSoldBy(item.soldBy());
         entity.setDeliveredBy(item.deliveredBy());
         entity.setCategory(item.category());
+        
+        // New trust signals fields
+        entity.setSalesCount(item.salesCount());
+        entity.setProductRating(item.productRating());
+        entity.setSellerRating(item.sellerRating());
+        entity.setOfficialStore(item.officialStore() != null ? item.officialStore() : false);
+        entity.setTrustSignals(item.trustSignals() != null ? 
+                TrustSignalsHelper.convertTrustSignalsToJson(
+                        TrustSignalsHelper.validateTrustSignals(item.trustSignals(), item.marketplace())
+                ) : null);
 
         promotionRepository.persist(entity);
     }
@@ -256,4 +267,6 @@ public class AdminImportService {
         if (imageKey == null || imageKey.isBlank()) return false;
         return SAFE_IMAGE_KEY.matcher(imageKey).matches();
     }
+
+
 }

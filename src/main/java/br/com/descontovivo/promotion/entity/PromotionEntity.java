@@ -110,6 +110,21 @@ public class PromotionEntity {
     @Column(name = "price_signal", nullable = false, length = 30)
     private PromotionPriceSignal priceSignal = PromotionPriceSignal.NONE;
 
+    @Column(name = "sales_count")
+    private Integer salesCount;
+
+    @Column(name = "product_rating", precision = 3, scale = 1)
+    private BigDecimal productRating;
+
+    @Column(name = "seller_rating", precision = 3, scale = 1)
+    private BigDecimal sellerRating;
+
+    @Column(name = "official_store")
+    private Boolean officialStore = false;
+
+    @Column(name = "trust_signals", columnDefinition = "TEXT")
+    private String trustSignals;
+
     @Column(name = "likes_count", nullable = false)
     private int likesCount;
 
@@ -187,4 +202,19 @@ public class PromotionEntity {
     public void setCategory(String category) { this.category = category; }
     public PromotionPriceSignal getPriceSignal() { return priceSignal; }
     public void setPriceSignal(PromotionPriceSignal priceSignal) { this.priceSignal = priceSignal; }
+
+    public Integer getSalesCount() { return salesCount; }
+    public void setSalesCount(Integer salesCount) { this.salesCount = salesCount; }
+
+    public BigDecimal getProductRating() { return productRating; }
+    public void setProductRating(BigDecimal productRating) { this.productRating = productRating; }
+
+    public BigDecimal getSellerRating() { return sellerRating; }
+    public void setSellerRating(BigDecimal sellerRating) { this.sellerRating = sellerRating; }
+
+    public Boolean getOfficialStore() { return officialStore; }
+    public void setOfficialStore(Boolean officialStore) { this.officialStore = officialStore; }
+
+    public String getTrustSignals() { return trustSignals; }
+    public void setTrustSignals(String trustSignals) { this.trustSignals = trustSignals; }
 }
