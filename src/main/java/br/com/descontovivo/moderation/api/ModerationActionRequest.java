@@ -2,9 +2,13 @@ package br.com.descontovivo.moderation.api;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public record ModerationActionRequest(
         @NotNull ModerationAction action,
@@ -22,7 +26,12 @@ public record ModerationActionRequest(
         @Size(max = 100) String soldBy,
         @Size(max = 100) String deliveredBy,
         @Size(max = 50) String category,
-        @Size(max = 30) String priceSignal
+        @Size(max = 30) String priceSignal,
+        @PositiveOrZero Integer salesCount,
+        @DecimalMin(value = "0.0", inclusive = true) @DecimalMax(value = "5.0", inclusive = true) BigDecimal productRating,
+        @DecimalMin(value = "0.0", inclusive = true) @DecimalMax(value = "5.0", inclusive = true) BigDecimal sellerRating,
+        Boolean officialStore,
+        List<String> trustSignals
 ) {
     public enum ModerationAction {
         APPROVE, REJECT, REMOVE, EDIT
