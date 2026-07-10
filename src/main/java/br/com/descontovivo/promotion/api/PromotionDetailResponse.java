@@ -1,10 +1,12 @@
 package br.com.descontovivo.promotion.api;
 
 import br.com.descontovivo.promotion.entity.PromotionEntity;
+import br.com.descontovivo.promotion.support.TrustSignalsHelper;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -35,7 +37,13 @@ public record PromotionDetailResponse(
         int commentsCount,
         OffsetDateTime createdAt,
         OffsetDateTime publishedAt,
-        String authorUsername
+        String authorUsername,
+        // New trust signals fields
+        Integer salesCount,
+        BigDecimal productRating,
+        BigDecimal sellerRating,
+        Boolean officialStore,
+        List<String> trustSignals
 ) {
     public static PromotionDetailResponse from(PromotionEntity e) {
         return new PromotionDetailResponse(
@@ -47,7 +55,12 @@ public record PromotionDetailResponse(
                 e.getPriceSignal() != null ? e.getPriceSignal().name() : "NONE",
                 e.getLikesCount(), e.getDislikesCount(), e.getCommentsCount(),
                 e.getCreatedAt(), e.getPublishedAt(),
-                e.getAuthorUsername()
+                e.getAuthorUsername(),
+                e.getSalesCount(),
+                e.getProductRating(),
+                e.getSellerRating(),
+                e.getOfficialStore(),
+                TrustSignalsHelper.parseTrustSignalsFromJson(e.getTrustSignals())
         );
     }
 }
