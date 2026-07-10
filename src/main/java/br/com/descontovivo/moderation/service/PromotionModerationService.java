@@ -10,6 +10,7 @@ import br.com.descontovivo.promotion.entity.PromotionPriceSignal;
 import br.com.descontovivo.promotion.entity.PromotionStatus;
 import br.com.descontovivo.promotion.repository.PromotionRepository;
 import br.com.descontovivo.promotion.support.PromotionNormalizer;
+import br.com.descontovivo.promotion.support.TrustSignalsHelper;
 import br.com.descontovivo.shared.security.CurrentUserProvider;
 import br.com.descontovivo.store.repository.StoreRepository;
 import br.com.descontovivo.store.service.StoreResolver;
@@ -20,6 +21,7 @@ import jakarta.transaction.Transactional;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.NotFoundException;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -132,6 +134,41 @@ public class PromotionModerationService {
         if (req.category() != null) entity.setCategory(req.category());
         if (req.priceSignal() != null) {
             entity.setPriceSignal(parsePriceSignal(req.priceSignal()));
+        }
+        
+        // Apply trust signals fields
+        if (req.salesCount() != null) {
+            if (req.salesCount() < 0) {
+                throw new IllegalArgumentException("salesCount não pode ser negativo");
+            }
+            entity.setSalesCount(req.salesCount());
+        }
+        
+        if (req.productRating() != null) {
+            if (req.productRating().compareTo(BigDecimal.ZERO) < 0 || req.productRating().compareTo(new BigDecimal("5.0")) > 0) {
+                throw new IllegalArgumentException("productRating deve estar entre 0 e 5");
+            }
+            entity.setProductRating(req.productRating());
+        }
+        
+        if (req.sellerRating() != null) {
+            if (req.sellerRating().compareTo(BigDecimal.ZERO) < 0 || req.sellerRating().compareTo(new BigDecimal("5.0")) > 0) {
+                throw new IllegalArgumentException("sellerRating deve estar entre 0 e 5");
+            }
+            entity.setSellerRating(req.sellerRating());
+        }
+        
+        if (req.officialStore() != null) {
+            entity.setOfficialStore(req.officialStore());
+        }
+        
+        if (req.trustSignals() != null) {
+            // Validate and filter trust signals using TrustSignalsHelper
+            String marketplace = entity.getMarketplace();
+            // Use entity's marketplace directly - it's already part of PromotionEntity
+            List<String> validSignals = TrustSignalsHelper.validateTrustSignals(req.trustSignals(), marketplace);
+            String trustSignalsJson = TrustSignalsHelper.convertTrustSignalsToJson(validSignals);
+            entity.setTrustSignals(trustSignalsJson);
         }
     }
 

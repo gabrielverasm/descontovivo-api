@@ -575,4 +575,188 @@ class ModerationResourceTest {
             .then().statusCode(201)
             .extract().jsonPath().getString("id");
     }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldEditTrustSignalsViaPatch() {
+        var id = createPromotion();
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "action": "EDIT",
+                    "reason": "Adicionar trust signals",
+                    "salesCount": 5000,
+                    "productRating": 4.8,
+                    "sellerRating": 4.9,
+                    "officialStore": true,
+                    "trustSignals": ["OFFICIAL_STORE", "HIGH_SALES", "GOOD_PRODUCT_RATING", "GOOD_SELLER_RATING"]
+                }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(200)
+            .body("salesCount", is(5000))
+            .body("productRating", is(4.8f))
+            .body("sellerRating", is(4.9f))
+            .body("officialStore", is(true))
+            .body("trustSignals.size()", is(4))
+            .body("trustSignals", hasItems("OFFICIAL_STORE", "HIGH_SALES", "GOOD_PRODUCT_RATING", "GOOD_SELLER_RATING"));
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldClearTrustSignalsWithEmptyList() {
+        var id = createPromotion();
+
+        // First, set some trust signals
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "action": "EDIT",
+                    "reason": "Adicionar trust signals",
+                    "trustSignals": ["OFFICIAL_STORE", "HIGH_SALES"]
+                }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then().statusCode(200);
+
+        // Then clear them with empty list
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "action": "EDIT",
+                    "reason": "Limpar trust signals",
+                    "trustSignals": []
+                }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(200)
+            .body("trustSignals.size()", is(0));
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldFilterInvalidTrustSignals() {
+        var id = createPromotion();
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "action": "EDIT",
+                    "reason": "Adicionar trust signals com inválidos",
+                    "trustSignals": ["OFFICIAL_STORE", "INVALID_SIGNAL", "ANOTHER_INVALID"]
+                }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(200)
+            .body("trustSignals.size()", is(1))
+            .body("trustSignals", hasItem("OFFICIAL_STORE"));
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldRejectInvalidProductRating() {
+        var id = createPromotion();
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "action": "EDIT",
+                    "reason": "Nota inválida",
+                    "productRating": 5.1
+                }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(400);
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldRejectNegativeSalesCount() {
+        var id = createPromotion();
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "action": "EDIT",
+                    "reason": "Vendas negativas",
+                    "salesCount": -100
+                }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(400);
+    }
+
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldEditAllTrustSignalsFieldsTogether() {
+        var id = createPromotion();
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "action": "EDIT",
+                    "reason": "Edição completa de trust signals",
+                    "title": "Novo título com trust signals",
+                    "salesCount": 15000,
+                    "productRating": 4.5,
+                    "sellerRating": 4.2,
+                    "officialStore": false,
+                    "trustSignals": ["PLATFORM_FULFILLED"]
+                }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(200)
+            .body("title", is("Novo título com trust signals"))
+            .body("salesCount", is(15000))
+            .body("productRating", is(4.5f))
+            .body("sellerRating", is(4.2f))
+            .body("officialStore", is(false))
+            .body("trustSignals.size()", is(1))
+            .body("trustSignals", hasItem("PLATFORM_FULFILLED"));
+    }
 }
