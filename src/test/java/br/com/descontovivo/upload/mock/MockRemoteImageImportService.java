@@ -45,6 +45,15 @@ public class MockRemoteImageImportService extends RemoteImageImportService {
     }
 
     @Override
+    public ImportedImage importImageToTemporaryStorage(String sourceUrl) {
+        if (shouldFail) throw new RemoteImageException(failureMessage);
+        importedUrls.add(sourceUrl);
+        String key = "temp/promotions/" + LocalDate.now().format(YEAR_MONTH)
+                + "/" + UUID.randomUUID() + ".webp";
+        return new ImportedImage(key, "https://img.descontovivo.com.br/" + key, "image/webp", 4096);
+    }
+
+    @Override
     public void validateUrlForDryRun(String sourceUrl) {
         if (sourceUrl == null || sourceUrl.isBlank()) {
             throw new RemoteImageException("URL de imagem obrigatória");

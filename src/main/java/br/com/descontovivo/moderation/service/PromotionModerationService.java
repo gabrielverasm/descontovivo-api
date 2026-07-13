@@ -109,6 +109,12 @@ public class PromotionModerationService {
     }
 
     private void applyEdits(PromotionEntity entity, ModerationActionRequest req) {
+        if (req.replaceInspectionFields()) {
+            applyInspectionReplacement(entity, req);
+            applyNonInspectionManualFields(entity, req);
+            updateImageIfRequested(entity, req);
+            return;
+        }
         if (req.title() != null) entity.setTitle(PromotionNormalizer.normalizeTitle(req.title()));
         if (req.url() != null) {
             entity.setUrl(req.url());
@@ -116,9 +122,8 @@ public class PromotionModerationService {
         }
         if (req.currentPrice() != null) entity.setCurrentPrice(req.currentPrice());
         if (req.originalPrice() != null) entity.setOriginalPrice(req.originalPrice());
-        if (req.couponCode() != null) entity.setCouponCode(req.couponCode());
+        applyNonInspectionManualFields(entity, req);
         updateImageIfRequested(entity, req);
-        if (req.availability() != null) entity.setAvailability(OfferAvailability.valueOf(req.availability()));
 
         // storeName takes priority over storeSlug
         if (req.storeName() != null && !req.storeName().isBlank()) {
@@ -129,12 +134,10 @@ public class PromotionModerationService {
             entity.setStore(store);
         }
 
+        if (req.sellerName() != null) entity.setSellerName(req.sellerName());
         if (req.soldBy() != null) entity.setSoldBy(req.soldBy());
         if (req.deliveredBy() != null) entity.setDeliveredBy(req.deliveredBy());
         if (req.category() != null) entity.setCategory(req.category());
-        if (req.priceSignal() != null) {
-            entity.setPriceSignal(parsePriceSignal(req.priceSignal()));
-        }
         
         // Apply trust signals fields
         if (req.salesCount() != null) {
@@ -170,6 +173,39 @@ public class PromotionModerationService {
             String trustSignalsJson = TrustSignalsHelper.convertTrustSignalsToJson(validSignals);
             entity.setTrustSignals(trustSignalsJson);
         }
+    }
+
+    private void applyNonInspectionManualFields(PromotionEntity entity, ModerationActionRequest req) {
+        if (req.couponCode() != null) entity.setCouponCode(req.couponCode());
+        if (req.availability() != null) entity.setAvailability(OfferAvailability.valueOf(req.availability()));
+        if (req.priceSignal() != null) entity.setPriceSignal(parsePriceSignal(req.priceSignal()));
+    }
+
+    private void applyInspectionReplacement(PromotionEntity entity, ModerationActionRequest req) {
+        entity.setMarketplace(blankToNull(req.marketplace()));
+        entity.setTitle(PromotionNormalizer.normalizeTitle(req.title()));
+        entity.setUrl(req.url());
+        entity.setNormalizedUrl(PromotionNormalizer.normalizeUrl(req.url()));
+        entity.setCurrentPrice(req.currentPrice());
+        entity.setOriginalPrice(req.originalPrice());
+        entity.setStore(blankToNull(req.storeName()) == null
+                ? null : storeResolver.findOrCreateByName(req.storeName().trim()));
+        entity.setSellerName(blankToNull(req.sellerName()));
+        entity.setSoldBy(blankToNull(req.soldBy()));
+        entity.setDeliveredBy(blankToNull(req.deliveredBy()));
+        entity.setCategory(blankToNull(req.category()));
+        entity.setSalesCount(req.salesCount());
+        entity.setProductRating(req.productRating());
+        entity.setSellerRating(req.sellerRating());
+        entity.setOfficialStore(Boolean.TRUE.equals(req.officialStore()));
+        List<String> validSignals = new java.util.ArrayList<>(TrustSignalsHelper.validateTrustSignals(
+                req.trustSignals() == null ? List.of() : req.trustSignals(), entity.getMarketplace()));
+        validSignals.remove("CURATED_BY_DESCONTOVIVO");
+        entity.setTrustSignals(TrustSignalsHelper.convertTrustSignalsToJson(validSignals));
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private PromotionPriceSignal parsePriceSignal(String value) {

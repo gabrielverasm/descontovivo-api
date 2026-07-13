@@ -759,4 +759,119 @@ class ModerationResourceTest {
             .body("trustSignals.size()", is(1))
             .body("trustSignals", hasItem("PLATFORM_FULFILLED"));
     }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldApplyManualFieldsAlongsideInspectionReplacement() {
+        var id = createPromotion();
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "action": "EDIT",
+                    "reason": "Inspeção com ajustes manuais",
+                    "replaceInspectionFields": true,
+                    "marketplace": "SHOPEE",
+                    "title": "Produto inspecionado",
+                    "url": "https://shopee.com.br/produto",
+                    "currentPrice": 89.90,
+                    "storeName": "Shopee",
+                    "couponCode": "CUPOM10",
+                    "availability": "UNAVAILABLE",
+                    "priceSignal": "GREAT_PRICE",
+                    "soldBy": null,
+                    "deliveredBy": null,
+                    "category": null,
+                    "officialStore": false,
+                    "trustSignals": []
+                }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(200)
+            .body("couponCode", is("CUPOM10"))
+            .body("availability", is("UNAVAILABLE"))
+            .body("priceSignal", is("GREAT_PRICE"))
+            .body("soldBy", nullValue())
+            .body("deliveredBy", nullValue())
+            .body("category", nullValue())
+            .body("officialStore", is(false))
+            .body("trustSignals", empty());
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldPreserveOmittedManualFieldsDuringInspectionReplacement() {
+        var id = createPromotion();
+
+        given().contentType(ContentType.JSON).body("""
+                {
+                    "action": "EDIT",
+                    "reason": "Preparar campos manuais",
+                    "couponCode": "PRESERVAR",
+                    "availability": "UNAVAILABLE",
+                    "priceSignal": "GOOD_PRICE"
+                }
+            """).when().patch("/api/v1/moderation/promotions/" + id).then().statusCode(200);
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "action": "EDIT",
+                    "reason": "Nova inspeção",
+                    "replaceInspectionFields": true,
+                    "marketplace": "SHOPEE",
+                    "title": "Produto atualizado",
+                    "url": "https://shopee.com.br/atualizado",
+                    "currentPrice": 79.90,
+                    "storeName": "Shopee",
+                    "officialStore": false,
+                    "trustSignals": []
+                }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(200)
+            .body("couponCode", is("PRESERVAR"))
+            .body("availability", is("UNAVAILABLE"))
+            .body("priceSignal", is("GOOD_PRICE"));
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldKeepOrdinaryEditSemanticsAndAllowClearingCoupon() {
+        var id = createPromotion();
+
+        given().contentType(ContentType.JSON).body("""
+                {
+                    "action": "EDIT",
+                    "reason": "Edição comum",
+                    "couponCode": "",
+                    "availability": "AVAILABLE",
+                    "priceSignal": "NONE",
+                    "replaceInspectionFields": false
+                }
+            """).when().patch("/api/v1/moderation/promotions/" + id)
+            .then().statusCode(200)
+            .body("couponCode", is(""))
+            .body("availability", is("AVAILABLE"))
+            .body("priceSignal", is("NONE"));
+    }
 }
