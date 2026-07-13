@@ -9,12 +9,16 @@ import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
+import java.util.regex.Pattern;
+
 @ApplicationScoped
 public class R2StorageService {
 
     private static final Logger LOG = Logger.getLogger(R2StorageService.class);
     private static final String TEMP_PREFIX = "temp/promotions/";
     private static final String FINAL_PREFIX = "promotions/";
+    private static final Pattern TEMP_KEY = Pattern.compile(
+            "^temp/promotions/\\d{4}/\\d{2}/[a-f0-9-]+\\.webp$");
 
     private final S3Client s3Client;
     private final R2Config r2Config;
@@ -54,8 +58,8 @@ public class R2StorageService {
     }
 
     public void validateTempKey(String imageKey) {
-        if (imageKey == null || !imageKey.startsWith(TEMP_PREFIX)) {
-            throw new IllegalArgumentException("imageKey must start with '" + TEMP_PREFIX + "'");
+        if (imageKey == null || !TEMP_KEY.matcher(imageKey).matches()) {
+            throw new IllegalArgumentException("invalid temporary imageKey");
         }
     }
 

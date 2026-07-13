@@ -23,6 +23,8 @@ public record ModerationActionRequest(
         @Size(max = 30) String availability,
         @Size(max = 120) String storeSlug,
         @Size(max = 100) String storeName,
+        @Size(max = 30) String marketplace,
+        @Size(max = 100) String sellerName,
         @Size(max = 100) String soldBy,
         @Size(max = 100) String deliveredBy,
         @Size(max = 50) String category,
@@ -31,7 +33,8 @@ public record ModerationActionRequest(
         @DecimalMin(value = "0.0", inclusive = true) @DecimalMax(value = "5.0", inclusive = true) BigDecimal productRating,
         @DecimalMin(value = "0.0", inclusive = true) @DecimalMax(value = "5.0", inclusive = true) BigDecimal sellerRating,
         Boolean officialStore,
-        List<String> trustSignals
+        List<String> trustSignals,
+        boolean replaceInspectionFields
 ) {
     public enum ModerationAction {
         APPROVE, REJECT, REMOVE, EDIT

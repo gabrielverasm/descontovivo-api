@@ -205,3 +205,14 @@ Para o roadmap completo, veja [`docs/ROADMAP.md`](docs/ROADMAP.md).
 - [Produção](docs/PRODUCTION_API.md)
 - [Native Image](docs/NATIVE_IMAGE.md)
 - [ADRs](docs/adr/)
+# Marketplace promotion inspection
+
+Administrative clients can call `POST /api/v1/admin/promotions/inspect-url` with
+`{"url":"https://..."}`. The server detects the marketplace and currently enables
+only Shopee. It calls the authenticated internal importer and best-effort imports
+the returned image into R2; image failure adds a warning and preserves product data.
+No promotion is created, changed, approved, or published.
+
+Required server-only variables: `SHOPEE_IMPORTER_BASE_URL`,
+`SHOPEE_IMPORTER_TOKEN`, `SHOPEE_IMPORTER_CONNECT_TIMEOUT`, and
+`SHOPEE_IMPORTER_READ_TIMEOUT`.

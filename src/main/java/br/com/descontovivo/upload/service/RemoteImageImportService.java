@@ -78,6 +78,14 @@ public class RemoteImageImportService {
     }
 
     public ImportedImage importImage(String sourceUrl) {
+        return importProcessedImage(sourceUrl, false);
+    }
+
+    public ImportedImage importImageToTemporaryStorage(String sourceUrl) {
+        return importProcessedImage(sourceUrl, true);
+    }
+
+    private ImportedImage importProcessedImage(String sourceUrl, boolean temporary) {
         validateUrl(sourceUrl);
 
         URI uri = URI.create(sourceUrl);
@@ -94,7 +102,9 @@ public class RemoteImageImportService {
             throw new RemoteImageException("Falha ao processar imagem de " + sourceUrl + ": " + e.getMessage());
         }
 
-        String imageKey = buildImageKey(processed.extension());
+        String imageKey = temporary
+                ? buildTemporaryImageKey(processed.extension())
+                : buildImageKey(processed.extension());
         String publicUrl = r2StorageService.buildPublicUrl(imageKey);
 
         r2StorageService.putImportedImage(processed.bytes(), processed.contentType(), imageKey);
@@ -257,6 +267,11 @@ public class RemoteImageImportService {
     private String buildImageKey(String extension) {
         String prefix = LocalDate.now().format(YEAR_MONTH);
         return "promotions/imported/" + prefix + "/" + UUID.randomUUID() + "." + extension;
+    }
+
+    private String buildTemporaryImageKey(String extension) {
+        String prefix = LocalDate.now().format(YEAR_MONTH);
+        return "temp/promotions/" + prefix + "/" + UUID.randomUUID() + "." + extension;
     }
 
     // --- Value objects ---
