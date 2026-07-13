@@ -79,4 +79,19 @@ class PromotionInspectionServiceTest {
         assertNull(response.imageKey());
         assertFalse(response.warnings().isEmpty());
     }
+
+    @Test void unexpectedImageStorageFailureKeepsProductDataAndAddsWarning() {
+        MarketplaceInspectionProvider provider = mock(MarketplaceInspectionProvider.class);
+        when(provider.supports(MarketplaceCode.SHOPEE)).thenReturn(true);
+        when(provider.inspect(anyString())).thenReturn(data());
+        RemoteImageImportService images = mock(RemoteImageImportService.class);
+        when(images.importImageToTemporaryStorage(anyString()))
+                .thenThrow(new IllegalStateException("storage unavailable"));
+
+        PromotionInspectionResponse response = service(provider, images).inspect("https://shopee.com.br/x");
+
+        assertEquals("Title", response.title());
+        assertNull(response.imageKey());
+        assertFalse(response.warnings().isEmpty());
+    }
 }

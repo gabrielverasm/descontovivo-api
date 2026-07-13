@@ -5,8 +5,14 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      SHOPEE_IMPORTER_BASE_URL: ${SHOPEE_IMPORTER_BASE_URL}
+      SHOPEE_IMPORTER_TOKEN: ${SHOPEE_IMPORTER_TOKEN}
+      SHOPEE_IMPORTER_CONNECT_TIMEOUT: ${SHOPEE_IMPORTER_CONNECT_TIMEOUT:-3S}
+      SHOPEE_IMPORTER_READ_TIMEOUT: ${SHOPEE_IMPORTER_READ_TIMEOUT:-12S}
     networks:
       - descontovivo-public
+      - descontovivo-internal
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/q/health"]
       interval: 30s
@@ -16,4 +22,6 @@ services:
 
 networks:
   descontovivo-public:
+    external: true
+  descontovivo-internal:
     external: true

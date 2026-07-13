@@ -6,11 +6,13 @@ import br.com.descontovivo.upload.service.RemoteImageImportService.RemoteImageEx
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import br.com.descontovivo.promotion.support.TrustSignalsHelper;
+import org.jboss.logging.Logger;
 
 import java.util.ArrayList;
 
 @ApplicationScoped
 public class PromotionInspectionService {
+    private static final Logger LOG = Logger.getLogger(PromotionInspectionService.class);
     private final MarketplaceDetector detector;
     private final Instance<MarketplaceInspectionProvider> providers;
     private final RemoteImageImportService imageImporter;
@@ -39,6 +41,9 @@ public class PromotionInspectionService {
                 imageKey = image.imageKey();
                 imageUrl = image.imageUrl();
             } catch (RemoteImageException e) {
+                warnings.add("Falha ao importar imagem; revise-a manualmente");
+            } catch (RuntimeException e) {
+                LOG.error("Unexpected temporary image import failure; preserving inspection data", e);
                 warnings.add("Falha ao importar imagem; revise-a manualmente");
             }
         }

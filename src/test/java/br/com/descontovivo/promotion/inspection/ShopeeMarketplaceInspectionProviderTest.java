@@ -82,4 +82,28 @@ class ShopeeMarketplaceInspectionProviderTest {
         assertEquals("IMPORTER_UNAVAILABLE", error.code());
         assertTrue(error.getMessage().contains("authentication"));
     }
+
+    @Test void mapsUnavailableImporterToServiceUnavailableError() {
+        var provider = new ShopeeMarketplaceInspectionProvider(new ObjectMapper(),
+                "http://127.0.0.1:1", Optional.of("secret"),
+                Duration.ofMillis(100), Duration.ofMillis(100));
+
+        MarketplaceInspectionException error = assertThrows(
+                MarketplaceInspectionException.class,
+                () -> provider.inspect("https://shopee.com.br/x"));
+
+        assertEquals("IMPORTER_UNAVAILABLE", error.code());
+    }
+
+    @Test void mapsInvalidImporterJsonToServiceUnavailableError() throws Exception {
+        String baseUrl = start(200, "not-json", new AtomicReference<>(), new AtomicReference<>());
+        var provider = new ShopeeMarketplaceInspectionProvider(new ObjectMapper(), baseUrl,
+                Optional.of("secret"), Duration.ofSeconds(1), Duration.ofSeconds(1));
+
+        MarketplaceInspectionException error = assertThrows(
+                MarketplaceInspectionException.class,
+                () -> provider.inspect("https://shopee.com.br/x"));
+
+        assertEquals("IMPORTER_UNAVAILABLE", error.code());
+    }
 }

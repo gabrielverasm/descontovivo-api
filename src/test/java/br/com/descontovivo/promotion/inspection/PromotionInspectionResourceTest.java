@@ -3,8 +3,10 @@ package br.com.descontovivo.promotion.inspection;
 import jakarta.ws.rs.core.Response;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.*;
 
 class PromotionInspectionResourceTest {
@@ -23,5 +25,20 @@ class PromotionInspectionResourceTest {
                 .inspect(new PromotionInspectionRequest("https://shopee.com.br/x"));
         assertEquals(expectedStatus, response.getStatus());
         assertEquals(code, ((PromotionInspectionResource.ErrorResponse) response.getEntity()).code());
+    }
+
+    @Test
+    void sanitizesUnexpectedFailuresAndReturnsRequestId() {
+        PromotionInspectionService service = mock(PromotionInspectionService.class);
+        when(service.inspect(anyString())).thenThrow(new IllegalStateException("sensitive detail"));
+
+        Response response = new PromotionInspectionResource(service)
+                .inspect(new PromotionInspectionRequest("https://shopee.com.br/x"));
+
+        assertEquals(500, response.getStatus());
+        var error = (PromotionInspectionResource.UnexpectedErrorResponse) response.getEntity();
+        assertEquals("INTERNAL_ERROR", error.code());
+        assertFalse(error.message().contains("sensitive detail"));
+        assertFalse(error.requestId().isBlank());
     }
 }
