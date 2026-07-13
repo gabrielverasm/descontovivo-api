@@ -119,18 +119,27 @@ jobs:
           R2_PUBLIC_BASE_URL: ${{ secrets.R2_PUBLIC_BASE_URL }}
           R2_REGION: ${{ secrets.R2_REGION }}
           IMAGE_MAX_UPLOAD_BYTES: ${{ secrets.IMAGE_MAX_UPLOAD_BYTES }}
+          SHOPEE_IMPORTER_BASE_URL: ${{ secrets.SHOPEE_IMPORTER_BASE_URL }}
+          SHOPEE_IMPORTER_TOKEN: ${{ secrets.SHOPEE_IMPORTER_TOKEN }}
+          SHOPEE_IMPORTER_CONNECT_TIMEOUT: ${{ secrets.SHOPEE_IMPORTER_CONNECT_TIMEOUT }}
+          SHOPEE_IMPORTER_READ_TIMEOUT: ${{ secrets.SHOPEE_IMPORTER_READ_TIMEOUT }}
           IMAGE_TAG: native-${{ github.sha }}
         with:
           host: ${{ secrets.VPS_HOST }}
           port: ${{ secrets.VPS_PORT }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: API_DB_URL,API_DB_USER,API_DB_PASSWORD,API_OIDC_AUTH_SERVER_URL,API_OIDC_CLIENT_ID,API_CORS_ORIGINS,R2_ENDPOINT,R2_ACCESS_KEY_ID,R2_SECRET_ACCESS_KEY,R2_BUCKET,R2_PUBLIC_BASE_URL,R2_REGION,IMAGE_MAX_UPLOAD_BYTES,IMAGE_TAG
+          envs: API_DB_URL,API_DB_USER,API_DB_PASSWORD,API_OIDC_AUTH_SERVER_URL,API_OIDC_CLIENT_ID,API_CORS_ORIGINS,R2_ENDPOINT,R2_ACCESS_KEY_ID,R2_SECRET_ACCESS_KEY,R2_BUCKET,R2_PUBLIC_BASE_URL,R2_REGION,IMAGE_MAX_UPLOAD_BYTES,SHOPEE_IMPORTER_BASE_URL,SHOPEE_IMPORTER_TOKEN,SHOPEE_IMPORTER_CONNECT_TIMEOUT,SHOPEE_IMPORTER_READ_TIMEOUT,IMAGE_TAG
           script: |
             set -Eeuo pipefail
 
             cd /opt/descontovivo/api
             umask 077
+
+            if [ -z "${SHOPEE_IMPORTER_BASE_URL}" ] || [ -z "${SHOPEE_IMPORTER_TOKEN}" ]; then
+              echo "Required Shopee importer configuration is missing"
+              exit 1
+            fi
 
             echo "===== Deploy DescontoVivo API Native ====="
             echo "IMAGE_TAG nova: ${IMAGE_TAG}"
@@ -165,6 +174,10 @@ jobs:
               safe_val R2_PUBLIC_BASE_URL "${R2_PUBLIC_BASE_URL}"
               safe_val R2_REGION "${R2_REGION}"
               safe_val IMAGE_MAX_UPLOAD_BYTES "${IMAGE_MAX_UPLOAD_BYTES}"
+              safe_val SHOPEE_IMPORTER_BASE_URL "${SHOPEE_IMPORTER_BASE_URL}"
+              safe_val SHOPEE_IMPORTER_TOKEN "${SHOPEE_IMPORTER_TOKEN}"
+              safe_val SHOPEE_IMPORTER_CONNECT_TIMEOUT "${SHOPEE_IMPORTER_CONNECT_TIMEOUT}"
+              safe_val SHOPEE_IMPORTER_READ_TIMEOUT "${SHOPEE_IMPORTER_READ_TIMEOUT}"
               echo "IMAGE_TAG=${IMAGE_TAG}"
             } > .env.next
 
@@ -177,6 +190,7 @@ jobs:
 
             echo
             echo "===== Pull da imagem native ====="
+            docker network inspect descontovivo-internal >/dev/null 2>&1 || docker network create descontovivo-internal
             docker compose -f docker-compose.prod.yml pull
 
             echo
