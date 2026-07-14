@@ -1,5 +1,6 @@
 package br.com.descontovivo.promotion.inspection;
 
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
@@ -46,6 +47,9 @@ public class PromotionInspectionResource {
         }
     }
 
+    @RegisterForReflection
     public record ErrorResponse(String code, String message) {}
+
+    @RegisterForReflection
     public record UnexpectedErrorResponse(String code, String message, String requestId) {}
 }

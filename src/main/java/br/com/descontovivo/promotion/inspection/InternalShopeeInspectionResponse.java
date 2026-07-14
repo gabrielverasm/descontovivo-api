@@ -1,8 +1,11 @@
 package br.com.descontovivo.promotion.inspection;
 
+import io.quarkus.runtime.annotations.RegisterForReflection;
+
 import java.math.BigDecimal;
 import java.util.List;
 
+@RegisterForReflection
 public record InternalShopeeInspectionResponse(
         String marketplace, String inputUrl, String productUrl, String affiliateUrl,
         Long shopId, Long itemId, String title, BigDecimal currentPrice,

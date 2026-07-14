@@ -2,7 +2,7 @@
 
 ## Versão atual
 
-**0.3.1** (minor)
+**0.3.2** (patch)
 
 ## Convenção
 
@@ -29,6 +29,7 @@ Usamos [SemVer](https://semver.org/) simplificado:
 
 | Versão | Data       | Descrição |
 |--------|------------|-----------|
+| 0.3.2  | 2026-07-13 | Corrige a serialização native dos DTOs da inspeção de promoções com registro explícito para reflection |
 | 0.3.1  | 2026-07-10 | Permite editar campos de trust signals pelo endpoint de moderação: salesCount, productRating, sellerRating, officialStore e trustSignals |
 | 0.3.0  | 2026-07-10 | Trust Signals: novos campos (salesCount, productRating, sellerRating, officialStore, trustSignals) em PromotionSummaryResponse, PromotionDetailResponse e AdminImportItemRequest; migration V12 adiciona colunas; TrustSignalsHelper com parse/serialize JSON e whitelist; exemplo em docs/examples/trust-signals-import-example.json |
 | 0.2.1  | 2026-07-09 | Fix admin import with pre-uploaded imageKey bypass |
