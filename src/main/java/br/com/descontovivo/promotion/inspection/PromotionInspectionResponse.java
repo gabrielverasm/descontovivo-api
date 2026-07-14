@@ -1,8 +1,11 @@
 package br.com.descontovivo.promotion.inspection;
 
+import io.quarkus.runtime.annotations.RegisterForReflection;
+
 import java.math.BigDecimal;
 import java.util.List;
 
+@RegisterForReflection
 public record PromotionInspectionResponse(
         MarketplaceCode marketplace, boolean supported, String inputUrl, String productUrl,
         String affiliateUrl, String title, BigDecimal currentPrice, BigDecimal originalPrice,
