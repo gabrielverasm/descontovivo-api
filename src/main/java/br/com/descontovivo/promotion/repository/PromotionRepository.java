@@ -80,12 +80,21 @@ public class PromotionRepository implements PanacheRepositoryBase<PromotionEntit
         return count("normalizedUrl = ?1 and createdDate = ?2", normalizedUrl, createdDate) > 0;
     }
 
-    public boolean existsBySourceId(String sourceId) {
-        return count("sourceId", sourceId) > 0;
-    }
-
-    public boolean existsByNormalizedUrl(String normalizedUrl) {
-        return count("normalizedUrl", normalizedUrl) > 0;
+    public List<OffsetDateTime> findRelevantEquivalentPublishedAt(String sourceId,
+                                                                  String normalizedUrl,
+                                                                  OffsetDateTime cutoff) {
+        return getEntityManager()
+                .createQuery(
+                        "SELECT p.publishedAt FROM PromotionEntity p " +
+                                "WHERE p.status = :status " +
+                                "AND (p.sourceId = :sourceId OR p.normalizedUrl = :normalizedUrl) " +
+                                "AND (p.publishedAt IS NULL OR p.publishedAt > :cutoff)",
+                        OffsetDateTime.class)
+                .setParameter("status", PromotionStatus.PUBLISHED)
+                .setParameter("sourceId", sourceId)
+                .setParameter("normalizedUrl", normalizedUrl)
+                .setParameter("cutoff", cutoff)
+                .getResultList();
     }
 
     public List<PromotionEntity> findWithExternalImage(String r2BaseUrl, int limit) {
