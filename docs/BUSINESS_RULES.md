@@ -45,9 +45,12 @@
 
 ## Duplicidade de promoção
 
-- É permitido republicar uma promoção com o mesmo link em outro dia.
-- Não é permitido publicar a mesma promoção, com mesmo link normalizado (URL), no mesmo dia.
-- A comparação de "mesmo dia" deve considerar o fuso horário oficial da aplicação (America/Sao_Paulo).
+- Na criação comunitária, é permitido republicar uma promoção com o mesmo link em outro dia,
+  mas não no mesmo dia (considerando o fuso `America/Sao_Paulo`).
+- No import administrativo, uma promoção com o mesmo `sourceId` ou link normalizado é bloqueada
+  somente quando já existe publicação equivalente há menos de 24 horas.
+- No import, publicações com exatamente 24 horas ou mais não bloqueiam uma nova promoção.
+- Data de publicação ausente não bloqueia automaticamente; data futura é registrada para investigação.
 
 ### Normalização de URL
 

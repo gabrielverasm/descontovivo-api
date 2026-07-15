@@ -1,8 +1,10 @@
 package br.com.descontovivo.promotion.api.admin;
 
+import br.com.descontovivo.promotion.repository.PromotionRepository;
 import br.com.descontovivo.promotion.support.SlugGenerator;
 import br.com.descontovivo.upload.mock.MockR2StorageService;
 import br.com.descontovivo.upload.mock.MockRemoteImageImportService;
+import io.quarkus.narayana.jta.QuarkusTransaction;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;
 import io.quarkus.test.junit.TestProfile;
@@ -44,6 +46,9 @@ class AdminImportResourceTest {
 
     @Inject
     MockR2StorageService mockR2Storage;
+
+    @Inject
+    PromotionRepository promotionRepository;
 
     @BeforeEach
     void setUp() {
@@ -191,6 +196,57 @@ class AdminImportResourceTest {
             .statusCode(200)
             .body("created", is(0))
             .body("skipped", is(1));
+    }
+
+    @Test
+    void shouldAllowEquivalentPromotionPublishedFiveDaysAgo() {
+        var sourceId = "five-days-" + uid();
+        importSuccessfully(sourceId);
+        setPublishedAt(sourceId, OffsetDateTime.now().minusDays(5));
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .body(validImportBody(sourceId))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("created", is(1))
+            .body("skipped", is(0));
+    }
+
+    @Test
+    void shouldAllowEquivalentPromotionWithoutPublishedAt() {
+        var sourceId = "no-date-" + uid();
+        importSuccessfully(sourceId);
+        setPublishedAt(sourceId, null);
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .body(validImportBody(sourceId))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("created", is(1))
+            .body("skipped", is(0));
+    }
+
+    @Test
+    void shouldAllowEquivalentPromotionWithFuturePublishedAt() {
+        var sourceId = "future-date-" + uid();
+        importSuccessfully(sourceId);
+        setPublishedAt(sourceId, OffsetDateTime.now().plusDays(1));
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .body(validImportBody(sourceId))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("created", is(1))
+            .body("skipped", is(0));
     }
 
     @Test
@@ -1053,6 +1109,22 @@ class AdminImportResourceTest {
 
     private static String uid() {
         return UUID.randomUUID().toString().substring(0, 8);
+    }
+
+    private void importSuccessfully(String sourceId) {
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .body(validImportBody(sourceId))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("created", is(1));
+    }
+
+    private void setPublishedAt(String sourceId, OffsetDateTime publishedAt) {
+        QuarkusTransaction.requiringNew().run(() ->
+                promotionRepository.update("publishedAt = ?1 where sourceId = ?2", publishedAt, sourceId));
     }
 
     private String validImportBody(String sourceId) {

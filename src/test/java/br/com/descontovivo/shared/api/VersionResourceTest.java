@@ -16,7 +16,7 @@ class VersionResourceTest {
             .then()
             .statusCode(200)
             .body("name", is("descontovivo-api"))
-            .body("version", is("0.3.2"));
+            .body("version", is("0.3.3"));
     }
 
     @Test

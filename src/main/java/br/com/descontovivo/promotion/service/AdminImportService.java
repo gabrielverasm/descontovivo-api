@@ -23,6 +23,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -35,6 +36,7 @@ public class AdminImportService {
     private static final Logger LOG = Logger.getLogger(AdminImportService.class);
     private static final String SOURCE = "ADMIN_JSON_IMPORT";
     private static final ZoneId SAO_PAULO = ZoneId.of("America/Sao_Paulo");
+    private static final Duration DUPLICATE_BLOCK_WINDOW = Duration.ofHours(24);
 
     /** Only accept imageKey with safe characters and expected prefix. */
     private static final Pattern SAFE_IMAGE_KEY = Pattern.compile(
@@ -78,9 +80,9 @@ public class AdminImportService {
         int created = 0;
         int skipped = 0;
 
-        // Intra-batch dedup sets
-        var seenSourceIds = new HashSet<String>();
-        var seenNormalizedUrls = new HashSet<String>();
+        // Publication timestamps already accepted in this batch, grouped by dedup key.
+        var seenSourceIds = new HashMap<String, List<OffsetDateTime>>();
+        var seenNormalizedUrls = new HashMap<String, List<OffsetDateTime>>();
 
         for (var item : request.items()) {
             var itemErrors = validate(item);
@@ -89,31 +91,27 @@ public class AdminImportService {
                 continue;
             }
 
-            // Intra-batch sourceId dedup
-            if (!seenSourceIds.add(item.sourceId())) {
-                skipped++;
-                continue;
-            }
-
-            // DB sourceId dedup
-            if (promotionRepository.existsBySourceId(item.sourceId())) {
-                skipped++;
-                continue;
-            }
-
             String normalizedUrl = PromotionNormalizer.normalizeUrl(item.productUrl());
+            OffsetDateTime publishedAt = item.publishAt() != null ? item.publishAt() : importStartedAt;
 
-            // Intra-batch URL dedup
-            if (!seenNormalizedUrls.add(normalizedUrl)) {
+            warnAboutFuturePublications(seenSourceIds.get(item.sourceId()), item.sourceId(), normalizedUrl, importStartedAt);
+            warnAboutFuturePublications(seenNormalizedUrls.get(normalizedUrl), item.sourceId(), normalizedUrl, importStartedAt);
+            if (hasRecentPublication(seenSourceIds.get(item.sourceId()), importStartedAt)
+                    || hasRecentPublication(seenNormalizedUrls.get(normalizedUrl), importStartedAt)) {
                 skipped++;
                 continue;
             }
 
-            // DB URL dedup
-            if (promotionRepository.existsByNormalizedUrl(normalizedUrl)) {
+            var equivalentPublishedAt = promotionRepository.findRelevantEquivalentPublishedAt(
+                    item.sourceId(), normalizedUrl, importStartedAt.minus(DUPLICATE_BLOCK_WINDOW));
+            warnAboutFuturePublications(equivalentPublishedAt, item.sourceId(), normalizedUrl, importStartedAt);
+            if (hasRecentPublication(equivalentPublishedAt, importStartedAt)) {
                 skipped++;
                 continue;
             }
+
+            seenSourceIds.computeIfAbsent(item.sourceId(), ignored -> new ArrayList<>()).add(publishedAt);
+            seenNormalizedUrls.computeIfAbsent(normalizedUrl, ignored -> new ArrayList<>()).add(publishedAt);
 
             if (!dryRun) {
                 // If imageKey is provided (already uploaded by UI), promote from temp and skip remote import
@@ -256,6 +254,30 @@ public class AdminImportService {
 
     private static boolean isBlank(String s) {
         return s == null || s.isBlank();
+    }
+
+    private static boolean hasRecentPublication(List<OffsetDateTime> publishedDates, OffsetDateTime now) {
+        return publishedDates != null && publishedDates.stream()
+                .anyMatch(publishedAt -> isWithinDuplicateWindow(publishedAt, now));
+    }
+
+    static boolean isWithinDuplicateWindow(OffsetDateTime publishedAt, OffsetDateTime now) {
+        if (publishedAt == null || publishedAt.isAfter(now)) {
+            return false;
+        }
+        return publishedAt.isAfter(now.minus(DUPLICATE_BLOCK_WINDOW));
+    }
+
+    private static void warnAboutFuturePublications(List<OffsetDateTime> publishedDates,
+                                                    String sourceId,
+                                                    String normalizedUrl,
+                                                    OffsetDateTime now) {
+        if (publishedDates != null && publishedDates.stream()
+                .filter(Objects::nonNull)
+                .anyMatch(publishedAt -> publishedAt.isAfter(now))) {
+            LOG.warnf("Future publishedAt found during admin import dedup; sourceId=%s normalizedUrl=%s",
+                    sourceId, normalizedUrl);
+        }
     }
 
     /**
