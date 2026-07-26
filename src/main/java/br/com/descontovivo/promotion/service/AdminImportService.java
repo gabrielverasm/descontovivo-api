@@ -190,7 +190,7 @@ public class AdminImportService {
         entity.setSellerName(item.sellerName());
         entity.setSoldBy(item.soldBy());
         entity.setDeliveredBy(item.deliveredBy());
-        entity.setCategory(item.category());
+        entity.setCategories(normalizeCategories(item.categories(), item.category()));
         
         // New trust signals fields
         entity.setSalesCount(item.salesCount());
@@ -203,6 +203,14 @@ public class AdminImportService {
                 ) : null);
 
         promotionRepository.persist(entity);
+    }
+
+    private java.util.Set<String> normalizeCategories(List<String> categories, String legacyCategory) {
+        List<String> source = categories != null ? categories : (isBlank(legacyCategory) ? List.of() : List.of(legacyCategory));
+        return source.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .map(String::trim)
+                .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
     }
 
     private String generateUniqueSlug(String title) {
@@ -226,6 +234,13 @@ public class AdminImportService {
         if (isBlank(item.marketplace())) errors.add(new AdminImportError(item.sourceId(), "marketplace", "marketplace obrigatório"));
         if (item.currentPrice() == null || item.currentPrice().compareTo(BigDecimal.ZERO) <= 0) {
             errors.add(new AdminImportError(item.sourceId(), "currentPrice", "currentPrice obrigatório e maior que zero"));
+        }
+        if (item.categories() != null) {
+            item.categories().stream()
+                    .filter(category -> category == null || category.isBlank() || !promotionRepository.categoryExists(category.trim()))
+                    .findFirst()
+                    .ifPresent(category -> errors.add(new AdminImportError(
+                            item.sourceId(), "categories", "Categoria não encontrada: " + category)));
         }
         if (item.originalPrice() != null && item.currentPrice() != null
                 && item.originalPrice().compareTo(item.currentPrice()) < 0) {

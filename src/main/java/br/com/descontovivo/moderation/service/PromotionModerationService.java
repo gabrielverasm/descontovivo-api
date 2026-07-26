@@ -24,6 +24,7 @@ import jakarta.ws.rs.NotFoundException;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.UUID;
 
 @ApplicationScoped
@@ -137,7 +138,11 @@ public class PromotionModerationService {
         if (req.sellerName() != null) entity.setSellerName(req.sellerName());
         if (req.soldBy() != null) entity.setSoldBy(req.soldBy());
         if (req.deliveredBy() != null) entity.setDeliveredBy(req.deliveredBy());
-        if (req.category() != null) entity.setCategory(req.category());
+        if (req.categories() != null) {
+            entity.setCategories(normalizeAndValidateCategories(req.categories()));
+        } else if (req.category() != null) {
+            entity.setCategories(normalizeCategories(List.of(req.category())));
+        }
         
         // Apply trust signals fields
         if (req.salesCount() != null) {
@@ -193,7 +198,11 @@ public class PromotionModerationService {
         entity.setSellerName(blankToNull(req.sellerName()));
         entity.setSoldBy(blankToNull(req.soldBy()));
         entity.setDeliveredBy(blankToNull(req.deliveredBy()));
-        entity.setCategory(blankToNull(req.category()));
+        if (req.categories() != null) {
+            entity.setCategories(normalizeAndValidateCategories(req.categories()));
+        } else if (req.category() != null) {
+            entity.setCategories(normalizeCategories(blankToNull(req.category()) == null ? List.of() : List.of(req.category())));
+        }
         entity.setSalesCount(req.salesCount());
         entity.setProductRating(req.productRating());
         entity.setSellerRating(req.sellerRating());
@@ -206,6 +215,25 @@ public class PromotionModerationService {
 
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private LinkedHashSet<String> normalizeCategories(List<String> categories) {
+        var normalized = new LinkedHashSet<String>();
+        for (String category : categories) {
+            String value = blankToNull(category);
+            if (value != null) normalized.add(value);
+        }
+        return normalized;
+    }
+
+    private LinkedHashSet<String> normalizeAndValidateCategories(List<String> categories) {
+        LinkedHashSet<String> normalized = normalizeCategories(categories);
+        for (String category : normalized) {
+            if (!promotionRepository.categoryExists(category)) {
+                throw new jakarta.ws.rs.BadRequestException("Categoria não encontrada: " + category);
+            }
+        }
+        return normalized;
     }
 
     private PromotionPriceSignal parsePriceSignal(String value) {

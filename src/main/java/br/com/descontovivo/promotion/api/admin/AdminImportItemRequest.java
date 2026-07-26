@@ -19,6 +19,7 @@ public record AdminImportItemRequest(
         BigDecimal originalPrice,
         String coupon,
         String category,
+        List<String> categories,
         String availability,
         String priceSignal,
         OffsetDateTime publishAt,

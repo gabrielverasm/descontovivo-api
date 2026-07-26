@@ -1,5 +1,6 @@
 package br.com.descontovivo.moderation.api;
 
+import io.agroal.api.AgroalDataSource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.security.TestSecurity;
 import io.quarkus.test.security.oidc.Claim;
@@ -8,13 +9,22 @@ import io.quarkus.test.security.oidc.OidcSecurity;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.Test;
 
+import jakarta.inject.Inject;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 @QuarkusTest
 class ModerationCategoryResourceTest {
+
+    @Inject
+    AgroalDataSource dataSource;
 
     @Test
     void shouldReturn401WithoutAuth() {
@@ -84,18 +94,31 @@ class ModerationCategoryResourceTest {
     })
     void shouldRenameCategory() {
         var id = createPromotion();
+        var secondId = createPromotion();
         String suffix = id.substring(0, 4);
         String catName = "CatRename" + suffix;
+        String renamed = "CatRenamed" + suffix;
         setCategory(id, catName);
+        setCategory(secondId, catName);
 
         given()
             .contentType(ContentType.JSON)
-            .body("{\"name\":\"CatRenamed" + suffix + "\"}")
+            .body("{\"name\":\"" + renamed + "\"}")
             .when().patch("/api/v1/moderation/categories/" + catName)
             .then()
             .statusCode(200)
-            .body("name", is("CatRenamed" + suffix))
-            .body("promotionCount", greaterThanOrEqualTo(1));
+            .body("name", is(renamed))
+            .body("promotionCount", greaterThanOrEqualTo(2));
+
+        given()
+            .queryParam("status", "PENDING_REVIEW")
+            .when().get("/api/v1/moderation/promotions")
+            .then()
+            .statusCode(200)
+            .body("find { it.id == '%s' }.category".formatted(id), is(renamed))
+            .body("find { it.id == '%s' }.categories".formatted(id), contains(renamed))
+            .body("find { it.id == '%s' }.category".formatted(secondId), is(renamed))
+            .body("find { it.id == '%s' }.categories".formatted(secondId), contains(renamed));
     }
 
     @Test
@@ -190,6 +213,79 @@ class ModerationCategoryResourceTest {
         @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
         @Claim(key = "preferred_username", value = "mod-user")
     })
+    void shouldCompactPositionsAndSynchronizeLegacyCategoryAfterGlobalDeletes() throws SQLException {
+        String suffix = UUID.randomUUID().toString().substring(0, 6);
+        String casa = "Casa_" + suffix;
+        String ofertas = "Ofertas_" + suffix;
+        String games = "Games_" + suffix;
+        var firstId = createPromotion();
+        var offersOnlyId = createPromotion();
+        var secondId = createPromotion();
+
+        setCategory(firstId, casa);
+        setCategory(offersOnlyId, ofertas);
+        setCategory(secondId, games);
+        setCategories(firstId, List.of(casa, ofertas, games));
+        setCategories(secondId, List.of(games, ofertas, casa));
+
+        assertPersistedCategories(firstId, List.of(casa, ofertas, games));
+        assertPersistedCategories(secondId, List.of(games, ofertas, casa));
+
+        deleteCategory(ofertas);
+
+        assertPromotionCategories(firstId, casa, List.of(casa, games));
+        assertPromotionCategories(offersOnlyId, null, List.of());
+        assertPromotionCategories(secondId, games, List.of(games, casa));
+        assertPersistedCategories(firstId, List.of(casa, games));
+        assertPersistedCategories(secondId, List.of(games, casa));
+
+        deleteCategory(casa);
+
+        assertPromotionCategories(firstId, games, List.of(games));
+        assertPromotionCategories(secondId, games, List.of(games));
+        assertPersistedCategories(firstId, List.of(games));
+        assertPersistedCategories(secondId, List.of(games));
+
+        deleteCategory(games);
+
+        assertPromotionCategories(firstId, null, List.of());
+        assertPromotionCategories(secondId, null, List.of());
+        assertPersistedCategories(firstId, List.of());
+        assertPersistedCategories(secondId, List.of());
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldPersistAndReloadCategoryReorderingWithoutConstraintViolations() throws SQLException {
+        String suffix = UUID.randomUUID().toString().substring(0, 6);
+        String casa = "CasaOrder_" + suffix;
+        String ofertas = "OfertasOrder_" + suffix;
+        var firstId = createPromotion();
+        var secondId = createPromotion();
+
+        setCategory(firstId, casa);
+        setCategory(secondId, ofertas);
+        setCategories(firstId, List.of(casa, ofertas));
+        assertPersistedCategories(firstId, List.of(casa, ofertas));
+
+        setCategories(firstId, List.of(ofertas, casa));
+
+        assertPromotionCategories(firstId, ofertas, List.of(ofertas, casa));
+        assertPersistedCategories(firstId, List.of(ofertas, casa));
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
     void shouldReturn404WhenDeletingNonExistentCategory() {
         given()
             .when().delete("/api/v1/moderation/categories/NonExistent_" + UUID.randomUUID().toString().substring(0, 6))
@@ -254,5 +350,67 @@ class ModerationCategoryResourceTest {
             """.formatted(category))
             .when().patch("/api/v1/moderation/promotions/" + promotionId)
             .then().statusCode(200);
+    }
+
+    private void setCategories(String promotionId, List<String> categories) {
+        String jsonCategories = categories.stream()
+                .map(category -> "\"" + category + "\"")
+                .collect(java.util.stream.Collectors.joining(","));
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "action": "EDIT",
+                    "reason": "Set categories",
+                    "categories": [%s]
+                }
+            """.formatted(jsonCategories))
+            .when().patch("/api/v1/moderation/promotions/" + promotionId)
+            .then().statusCode(200);
+    }
+
+    private void deleteCategory(String category) {
+        given()
+            .when().delete("/api/v1/moderation/categories/{category}", category)
+            .then().statusCode(204);
+    }
+
+    private void assertPromotionCategories(String promotionId, String legacyCategory, List<String> expected) {
+        var json = given()
+            .queryParam("status", "PENDING_REVIEW")
+            .when().get("/api/v1/moderation/promotions")
+            .then().statusCode(200)
+            .extract().jsonPath();
+        assertEquals(legacyCategory, json.getString("find { it.id == '%s' }.category".formatted(promotionId)));
+        List<String> categories = json.getList(
+                "find { it.id == '%s' }.categories".formatted(promotionId),
+                String.class);
+        assertEquals(expected, categories);
+        assertFalse(categories.stream().anyMatch(java.util.Objects::isNull));
+    }
+
+    private void assertPersistedCategories(String promotionId, List<String> expected) throws SQLException {
+        var categories = new ArrayList<String>();
+        var positions = new ArrayList<Integer>();
+        try (var connection = dataSource.getConnection();
+             var statement = connection.prepareStatement("""
+                     SELECT category, position
+                     FROM promotion_category
+                     WHERE promotion_id = CAST(? AS UUID)
+                     ORDER BY position
+                     """)) {
+            statement.setString(1, promotionId);
+            try (var result = statement.executeQuery()) {
+                while (result.next()) {
+                    categories.add(result.getString("category"));
+                    positions.add(result.getInt("position"));
+                }
+            }
+        }
+        assertEquals(expected, categories);
+        assertEquals(
+                java.util.stream.IntStream.range(0, expected.size()).boxed().toList(),
+                positions);
+        assertFalse(categories.stream().anyMatch(java.util.Objects::isNull));
     }
 }
