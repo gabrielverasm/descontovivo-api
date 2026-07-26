@@ -2,10 +2,15 @@ package br.com.descontovivo.promotion.entity;
 
 import br.com.descontovivo.store.entity.StoreEntity;
 import jakarta.persistence.*;
+import org.hibernate.annotations.BatchSize;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.UUID;
 
 @Entity
@@ -106,6 +111,13 @@ public class PromotionEntity {
     @Column(length = 50)
     private String category;
 
+    @ElementCollection
+    @CollectionTable(name = "promotion_category", joinColumns = @JoinColumn(name = "promotion_id"))
+    @Column(name = "category", nullable = false, length = 50)
+    @OrderColumn(name = "position")
+    @BatchSize(size = 50)
+    private List<String> categories = new ArrayList<>();
+
     @Enumerated(EnumType.STRING)
     @Column(name = "price_signal", nullable = false, length = 30)
     private PromotionPriceSignal priceSignal = PromotionPriceSignal.NONE;
@@ -199,7 +211,14 @@ public class PromotionEntity {
     public String getDeliveredBy() { return deliveredBy; }
     public void setDeliveredBy(String deliveredBy) { this.deliveredBy = deliveredBy; }
     public String getCategory() { return category; }
-    public void setCategory(String category) { this.category = category; }
+    public void setCategory(String category) {
+        setCategories(category == null || category.isBlank() ? List.of() : List.of(category));
+    }
+    public List<String> getCategories() { return categories; }
+    public void setCategories(Collection<String> categories) {
+        this.categories = categories == null ? new ArrayList<>() : new ArrayList<>(new LinkedHashSet<>(categories));
+        this.category = this.categories.stream().findFirst().orElse(null);
+    }
     public PromotionPriceSignal getPriceSignal() { return priceSignal; }
     public void setPriceSignal(PromotionPriceSignal priceSignal) { this.priceSignal = priceSignal; }
 

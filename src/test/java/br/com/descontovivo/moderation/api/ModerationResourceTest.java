@@ -438,7 +438,87 @@ class ModerationResourceTest {
             .body("soldBy", is("Loja XPTO"))
             .body("deliveredBy", is("Amazon"))
             .body("category", is("Eletrônicos"))
+            .body("categories", contains("Eletrônicos"))
             .body("availability", is("AVAILABLE"));
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldCreateReadUpdateAndClearMultipleCategories() {
+        var id = createPromotion();
+        var secondId = createPromotion();
+
+        given().contentType(ContentType.JSON)
+            .body("{ \"action\": \"EDIT\", \"reason\": \"Preparar categoria\", \"category\": \"Casa\" }")
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then().statusCode(200);
+        given().contentType(ContentType.JSON)
+            .body("{ \"action\": \"EDIT\", \"reason\": \"Preparar categoria\", \"category\": \"Ofertas\" }")
+            .when().patch("/api/v1/moderation/promotions/" + secondId)
+            .then().statusCode(200);
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "action": "EDIT",
+                    "reason": "Múltiplas categorias",
+                    "categories": ["Casa", "Ofertas", "Casa"]
+                }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(200)
+            .body("category", is("Casa"))
+            .body("categories", contains("Casa", "Ofertas"));
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "action": "EDIT",
+                    "reason": "Alteração sem categorias",
+                    "couponCode": "PROMO10"
+                }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(200)
+            .body("category", is("Casa"))
+            .body("categories", contains("Casa", "Ofertas"));
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "action": "EDIT",
+                    "reason": "Remover categorias",
+                    "categories": []
+                }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(200)
+            .body("category", nullValue())
+            .body("categories", empty());
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("""
+                {
+                    "action": "EDIT",
+                    "reason": "Categoria inválida",
+                    "categories": ["Categoria inexistente"]
+                }
+            """)
+            .when().patch("/api/v1/moderation/promotions/" + id)
+            .then()
+            .statusCode(400);
     }
 
     @Test

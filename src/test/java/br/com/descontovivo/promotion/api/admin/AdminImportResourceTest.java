@@ -18,6 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -196,6 +197,32 @@ class AdminImportResourceTest {
             .statusCode(200)
             .body("created", is(0))
             .body("skipped", is(1));
+    }
+
+    @Test
+    void shouldSupportLegacyAndMultipleCategoriesOnAdminImport() {
+        String suffix = uid();
+        importCategorySeed("seed-casa-" + suffix, "Casa_" + suffix);
+        importCategorySeed("seed-ofertas-" + suffix, "Ofertas_" + suffix);
+        String sourceId = "multi-categories-" + suffix;
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .body(importBodyWithCategories(sourceId, List.of(
+                    "Casa_" + suffix, "Ofertas_" + suffix, "Casa_" + suffix)))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("created", is(1))
+            .body("errors", empty());
+
+        var persisted = (Object[]) QuarkusTransaction.requiringNew().call(() -> {
+            var entity = promotionRepository.find("sourceId", sourceId).firstResult();
+            return new Object[] { List.copyOf(entity.getCategories()), entity.getCategory() };
+        });
+        assertEquals(List.of("Casa_" + suffix, "Ofertas_" + suffix), persisted[0]);
+        assertEquals("Casa_" + suffix, persisted[1]);
     }
 
     @Test
@@ -1142,6 +1169,26 @@ class AdminImportResourceTest {
               }]
             }
         """.formatted(sourceId, sourceId, sourceId);
+    }
+
+    private void importCategorySeed(String sourceId, String category) {
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .body(validImportBody(sourceId).replace(
+                    "\"currentPrice\": 199.90",
+                    "\"currentPrice\": 199.90, \"category\": \"" + category + "\""))
+            .when().post(IMPORT_PATH)
+            .then().statusCode(200).body("created", is(1));
+    }
+
+    private String importBodyWithCategories(String sourceId, List<String> categories) {
+        String jsonCategories = categories.stream()
+                .map(value -> "\"" + value + "\"")
+                .collect(java.util.stream.Collectors.joining(","));
+        return validImportBody(sourceId).replace(
+                "\"currentPrice\": 199.90",
+                "\"currentPrice\": 199.90, \"categories\": [" + jsonCategories + "]");
     }
 
     private String importBodyWithoutPublishAt(String sourceId) {

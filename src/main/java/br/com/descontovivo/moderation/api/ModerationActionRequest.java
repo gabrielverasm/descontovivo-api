@@ -28,6 +28,7 @@ public record ModerationActionRequest(
         @Size(max = 100) String soldBy,
         @Size(max = 100) String deliveredBy,
         @Size(max = 50) String category,
+        List<@Size(max = 50) String> categories,
         @Size(max = 30) String priceSignal,
         @PositiveOrZero Integer salesCount,
         @DecimalMin(value = "0.0", inclusive = true) @DecimalMax(value = "5.0", inclusive = true) BigDecimal productRating,

@@ -138,9 +138,8 @@ public class PromotionRepository implements PanacheRepositoryBase<PromotionEntit
     public List<Object[]> listDistinctCategoriesWithCount() {
         return getEntityManager()
                 .createQuery(
-                        "SELECT p.category, COUNT(p) FROM PromotionEntity p " +
-                        "WHERE p.category IS NOT NULL AND LENGTH(TRIM(p.category)) > 0 " +
-                        "GROUP BY p.category ORDER BY LOWER(p.category)",
+                        "SELECT category, COUNT(DISTINCT p.id) FROM PromotionEntity p JOIN p.categories category " +
+                        "GROUP BY category ORDER BY LOWER(category)",
                         Object[].class)
                 .getResultList();
     }
@@ -149,27 +148,80 @@ public class PromotionRepository implements PanacheRepositoryBase<PromotionEntit
      * Count promotions using an exact category name.
      */
     public long countByCategory(String category) {
-        return count("category", category);
+        return ((Number) getEntityManager().createNativeQuery(
+                "SELECT COUNT(DISTINCT promotion_id) FROM promotion_category WHERE category = :category")
+                .setParameter("category", category)
+                .getSingleResult()).longValue();
     }
 
     /**
      * Check if a category exists (exact match).
      */
     public boolean categoryExists(String category) {
-        return count("category", category) > 0;
+        return countByCategory(category) > 0;
     }
 
     /**
      * Rename category on all promotions that use it.
      */
     public long renameCategory(String oldName, String newName) {
-        return update("category = ?1 where category = ?2", newName, oldName);
+        int updated = getEntityManager().createNativeQuery(
+                "UPDATE promotion_category SET category = :newName WHERE category = :oldName")
+                .setParameter("newName", newName)
+                .setParameter("oldName", oldName)
+                .executeUpdate();
+        update("category = ?1 where category = ?2", newName, oldName);
+        return updated;
     }
 
     /**
-     * Clear category from all promotions using it (set to null).
+     * Remove a category globally, compact every affected ordered collection and
+     * synchronize the legacy category with the new first element.
      */
     public long clearCategory(String categoryName) {
-        return update("category = null where category = ?1", categoryName);
+        return getEntityManager().createNativeQuery("""
+                WITH affected AS MATERIALIZED (
+                    SELECT DISTINCT promotion_id
+                    FROM promotion_category
+                    WHERE category = :category
+                ),
+                deleted AS (
+                    DELETE FROM promotion_category
+                    WHERE category = :category
+                    RETURNING promotion_id
+                ),
+                remaining AS MATERIALIZED (
+                    SELECT
+                        pc.promotion_id,
+                        pc.category,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY pc.promotion_id
+                            ORDER BY pc.position
+                        ) - 1 AS new_position
+                    FROM promotion_category pc
+                    JOIN affected a ON a.promotion_id = pc.promotion_id
+                    WHERE pc.category <> :category
+                ),
+                repositioned AS (
+                    UPDATE promotion_category pc
+                    SET position = remaining.new_position
+                    FROM remaining
+                    WHERE pc.promotion_id = remaining.promotion_id
+                      AND pc.category = remaining.category
+                    RETURNING pc.promotion_id
+                )
+                UPDATE promotion p
+                SET category = (
+                    SELECT remaining.category
+                    FROM remaining
+                    WHERE remaining.promotion_id = p.id
+                      AND remaining.new_position = 0
+                )
+                WHERE p.id IN (SELECT promotion_id FROM affected)
+                RETURNING p.id
+                """)
+                .setParameter("category", categoryName)
+                .getResultList()
+                .size();
     }
 }
