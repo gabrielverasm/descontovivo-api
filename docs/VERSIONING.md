@@ -2,7 +2,7 @@
 
 ## Versão atual
 
-**0.4.0** (minor)
+**0.4.1** (patch)
 
 ## Convenção
 
@@ -29,6 +29,7 @@ Usamos [SemVer](https://semver.org/) simplificado:
 
 | Versão | Data       | Descrição |
 |--------|------------|-----------|
+| 0.4.1  | 2026-07-31 | Permite categorias derivadas novas com política uniforme, ordena o feed deterministicamente e produz snapshot público consistente para o SSE |
 | 0.4.0  | 2026-07-26 | Adiciona categorias múltiplas às promoções com contrato retrocompatível e backfill do campo legado |
 | 0.3.3  | 2026-07-15 | Limita a deduplicação do import administrativo a promoções equivalentes publicadas há menos de 24 horas |
 | 0.3.2  | 2026-07-13 | Corrige a serialização native dos DTOs da inspeção de promoções com registro explícito para reflection |

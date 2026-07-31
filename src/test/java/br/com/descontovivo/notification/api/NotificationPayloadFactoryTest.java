@@ -66,6 +66,7 @@ class NotificationPayloadFactoryTest {
         JsonNode node = objectMapper.readTree(json);
         assertTrue(node.has("publishedCount"), "Must contain 'publishedCount'");
         assertEquals(42, node.get("publishedCount").asInt());
+        assertTrue(node.has("latestPromotionId"), "Must contain 'latestPromotionId'");
         assertTrue(node.has("latestPublishedAt"), "Must contain 'latestPublishedAt'");
         assertFalse(node.get("latestPublishedAt").isNull(), "latestPublishedAt should not be null when set");
     }

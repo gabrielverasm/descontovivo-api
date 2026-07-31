@@ -210,7 +210,7 @@ class AdminImportResourceTest {
             .contentType(ContentType.JSON)
             .header("X-Admin-Import-Token", "test-secret-token-123")
             .body(importBodyWithCategories(sourceId, List.of(
-                    "Casa_" + suffix, "Ofertas_" + suffix, "Casa_" + suffix)))
+                    "Casa_" + suffix, "Ofertas_" + suffix)))
             .when().post(IMPORT_PATH)
             .then()
             .statusCode(200)
@@ -223,6 +223,111 @@ class AdminImportResourceTest {
         });
         assertEquals(List.of("Casa_" + suffix, "Ofertas_" + suffix), persisted[0]);
         assertEquals("Casa_" + suffix, persisted[1]);
+    }
+
+    @Test
+    void shouldCreateFirstPromotionWithNewCategories() {
+        String suffix = uid();
+        String sourceId = "first-category-promotion-" + suffix;
+        List<String> newCategories = List.of("Casa_" + suffix, "Fitness_" + suffix);
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .body(importBodyWithCategories(sourceId, newCategories))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("created", is(1))
+            .body("errors", empty());
+
+        var persisted = (Object[]) QuarkusTransaction.requiringNew().call(() -> {
+            var entity = promotionRepository.find("sourceId", sourceId).firstResult();
+            return new Object[] { List.copyOf(entity.getCategories()), entity.getCategory() };
+        });
+        assertEquals(newCategories, persisted[0]);
+        assertEquals(newCategories.getFirst(), persisted[1]);
+        long categoryCount = QuarkusTransaction.requiringNew().call(() ->
+                promotionRepository.countByCategory(newCategories.getFirst()));
+        assertEquals(1L, categoryCount);
+    }
+
+    @Test
+    void shouldCreateFirstPromotionWithOneNewCategory() {
+        String suffix = uid();
+        String sourceId = "first-single-category-" + suffix;
+        String newCategory = "Categoria única " + suffix;
+
+        given().contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .body(importBodyWithCategories(sourceId, List.of(newCategory)))
+            .when().post(IMPORT_PATH)
+            .then().statusCode(200)
+            .body("created", is(1))
+            .body("errors", empty());
+
+        long categoryCount = QuarkusTransaction.requiringNew().call(() ->
+                promotionRepository.countByCategory(newCategory));
+        assertEquals(1L, categoryCount);
+    }
+
+    @Test
+    void shouldPreserveOrderWhenMixingExistingAndNewCategories() {
+        String suffix = uid();
+        String canonical = "Casa " + suffix;
+        String newCategory = "Nova " + suffix;
+        importCategorySeed("mixed-seed-" + suffix, canonical);
+        String sourceId = "mixed-categories-" + suffix;
+
+        given().contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .body(importBodyWithCategories(sourceId, List.of(newCategory, "  CASA   " + suffix)))
+            .when().post(IMPORT_PATH)
+            .then().statusCode(200)
+            .body("created", is(1));
+
+        var categories = QuarkusTransaction.requiringNew().call(() ->
+                List.copyOf(promotionRepository.find("sourceId", sourceId).firstResult().getCategories()));
+        assertEquals(List.of(newCategory, canonical), categories);
+    }
+
+    @Test
+    void shouldResolveExistingCategorySpellingBeforePersisting() {
+        String suffix = uid();
+        String canonical = "Saúde " + suffix;
+        importCategorySeed("canonical-seed-" + suffix, canonical);
+        String sourceId = "canonical-category-" + suffix;
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .body(importBodyWithCategories(sourceId, List.of("  SAUDE   " + suffix)))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("created", is(1));
+
+        var categories = QuarkusTransaction.requiringNew().call(() ->
+                List.copyOf(promotionRepository.find("sourceId", sourceId).firstResult().getCategories()));
+        assertEquals(List.of(canonical), categories);
+    }
+
+    @Test
+    void shouldValidateCategoriesBeforeImportingImage() {
+        String sourceId = "invalid-categories-no-r2-" + uid();
+        mockImageImport.clearImportedUrls();
+
+        given()
+            .contentType(ContentType.JSON)
+            .header("X-Admin-Import-Token", "test-secret-token-123")
+            .body(importBodyWithCategories(sourceId, List.of("A", "B", "C", "D", "E")))
+            .when().post(IMPORT_PATH)
+            .then()
+            .statusCode(200)
+            .body("created", is(0))
+            .body("errors[0].field", is("categories"));
+
+        assertTrue(mockImageImport.getImportedUrls().isEmpty());
     }
 
     @Test

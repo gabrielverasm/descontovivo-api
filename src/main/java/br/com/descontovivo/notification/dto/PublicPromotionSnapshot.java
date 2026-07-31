@@ -3,6 +3,7 @@ package br.com.descontovivo.notification.dto;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
 import java.time.OffsetDateTime;
+import java.util.UUID;
 
 /**
  * Lightweight snapshot for public SSE stream.
@@ -17,5 +18,10 @@ import java.time.OffsetDateTime;
 @RegisterForReflection
 public record PublicPromotionSnapshot(
         long publishedCount,
+        UUID latestPromotionId,
         OffsetDateTime latestPublishedAt
-) {}
+) {
+    public PublicPromotionSnapshot(long publishedCount, OffsetDateTime latestPublishedAt) {
+        this(publishedCount, null, latestPublishedAt);
+    }
+}
