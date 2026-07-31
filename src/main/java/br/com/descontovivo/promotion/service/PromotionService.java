@@ -53,10 +53,21 @@ public class PromotionService {
     }
 
     @Transactional
+    public List<PromotionSummaryResponse> listRelatedPublished(String slug, int page, int size) {
+        var promotion = findPublishedEntityBySlug(slug);
+        return promotionRepository.listRelatedPublished(promotion.getId(), promotion.getCategories(), page, size)
+                .stream().map(PromotionSummaryResponse::from).toList();
+    }
+
+    @Transactional
+    public long countRelatedPublished(String slug) {
+        var promotion = findPublishedEntityBySlug(slug);
+        return promotionRepository.countRelatedPublished(promotion.getId(), promotion.getCategories());
+    }
+
+    @Transactional
     public PromotionDetailResponse findPublishedBySlug(String slug) {
-        var entity = promotionRepository.findPublishedBySlug(slug)
-                .orElseThrow(() -> new jakarta.ws.rs.NotFoundException("Promotion not found: " + slug));
-        return PromotionDetailResponse.from(entity);
+        return PromotionDetailResponse.from(findPublishedEntityBySlug(slug));
     }
 
     @Transactional
@@ -100,5 +111,10 @@ public class PromotionService {
 
         promotionRepository.persist(entity);
         return PromotionDetailResponse.from(entity);
+    }
+
+    private PromotionEntity findPublishedEntityBySlug(String slug) {
+        return promotionRepository.findPublishedBySlug(slug)
+                .orElseThrow(() -> new jakarta.ws.rs.NotFoundException("Promotion not found: " + slug));
     }
 }
