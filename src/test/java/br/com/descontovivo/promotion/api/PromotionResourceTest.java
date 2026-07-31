@@ -9,11 +9,94 @@ import io.restassured.http.ContentType;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
+import java.util.List;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 @QuarkusTest
 class PromotionResourceTest {
+
+    @Test
+    @TestSecurity(user = "related-admin", roles = {"user", "moderator", "admin"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "related-admin-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "related-admin@test.local"),
+        @Claim(key = "preferred_username", value = "related-admin")
+    })
+    void shouldListDistinctPublicRelatedPromotionsByEveryCurrentCategory() {
+        var current = createPromotion("Related current");
+        editCategories(current.id(), List.of("Casa", "Jardim"));
+        approve(current.id());
+
+        var bothCategories = createPromotion("Related both");
+        editCategories(bothCategories.id(), List.of("Casa", "Jardim"));
+        approve(bothCategories.id());
+
+        var secondCategory = createPromotion("Related garden");
+        editCategories(secondCategory.id(), List.of("Jardim"));
+        approve(secondCategory.id());
+
+        var unrelated = createPromotion("Related games");
+        editCategories(unrelated.id(), List.of("Games"));
+        approve(unrelated.id());
+
+        var pending = createPromotion("Related pending");
+        editCategories(pending.id(), List.of("Casa"));
+
+        var removed = createPromotion("Related removed");
+        editCategories(removed.id(), List.of("Casa"));
+        approve(removed.id());
+        remove(removed.id());
+
+        var response = given()
+                .queryParam("size", 10)
+                .when().get("/api/v1/promotions/{slug}/related", current.slug())
+                .then().statusCode(200)
+                .body("totalElements", is(2))
+                .body("content.id", not(hasItem(current.id())))
+                .body("content.id", not(hasItem(unrelated.id())))
+                .body("content.id", not(hasItem(pending.id())))
+                .body("content.id", not(hasItem(removed.id())))
+                .body("content.slug", containsInAnyOrder(bothCategories.slug(), secondCategory.slug()))
+                .extract().jsonPath();
+
+        assertEquals(2, response.getList("content.id").stream().distinct().count());
+
+        var firstPageSlug = given().queryParam("page", 0).queryParam("size", 1)
+                .when().get("/api/v1/promotions/{slug}/related", current.slug())
+                .then().statusCode(200).body("totalPages", is(2))
+                .extract().jsonPath().getString("content[0].slug");
+        var secondPageSlug = given().queryParam("page", 1).queryParam("size", 1)
+                .when().get("/api/v1/promotions/{slug}/related", current.slug())
+                .then().statusCode(200)
+                .extract().jsonPath().getString("content[0].slug");
+        assertNotEquals(firstPageSlug, secondPageSlug);
+
+        given().when().get("/api/v1/promotions/{slug}", firstPageSlug).then().statusCode(200);
+        given().when().get("/api/v1/promotions/{slug}", secondPageSlug).then().statusCode(200);
+    }
+
+    @Test
+    @TestSecurity(user = "related-empty-admin", roles = {"user", "moderator", "admin"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "related-empty-admin-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "related-empty-admin@test.local"),
+        @Claim(key = "preferred_username", value = "related-empty-admin")
+    })
+    void shouldReturnNoArbitraryRecommendationsWhenPromotionHasNoCategories() {
+        var current = createPromotion("Related categoryless");
+        approve(current.id());
+
+        given()
+                .when().get("/api/v1/promotions/{slug}/related", current.slug())
+                .then().statusCode(200)
+                .body("content", empty())
+                .body("totalElements", is(0));
+    }
 
     @Test
     void shouldListPromotionsWithoutAuth() {
@@ -615,4 +698,50 @@ class PromotionResourceTest {
             .body("store.name", is("Fast Shop"))
             .body("store.slug", is("fast-shop"));
     }
+
+    private CreatedPromotion createPromotion(String titlePrefix) {
+        var uid = UUID.randomUUID().toString().substring(0, 8);
+        var json = given()
+                .contentType(ContentType.JSON)
+                .body("""
+                    {
+                        "title": "%s %s",
+                        "url": "https://www.amazon.com.br/%s",
+                        "currentPrice": 49.90,
+                        "imageKey": "temp/promotions/2026/07/%s.webp",
+                        "storeSlug": "amazon"
+                    }
+                    """.formatted(titlePrefix, uid, uid, uid))
+                .when().post("/api/v1/promotions")
+                .then().statusCode(201)
+                .extract().jsonPath();
+        return new CreatedPromotion(json.getString("id"), json.getString("slug"));
+    }
+
+    private void editCategories(String id, List<String> categories) {
+        var values = categories.stream().map(category -> "\"" + category + "\"")
+                .collect(java.util.stream.Collectors.joining(","));
+        given().contentType(ContentType.JSON)
+                .body("""
+                    { "action": "EDIT", "reason": "Related test", "categories": [%s] }
+                    """.formatted(values))
+                .when().patch("/api/v1/moderation/promotions/" + id)
+                .then().statusCode(200);
+    }
+
+    private void approve(String id) {
+        given().contentType(ContentType.JSON)
+                .body("{\"action\":\"APPROVE\",\"reason\":\"Related test\"}")
+                .when().patch("/api/v1/moderation/promotions/" + id)
+                .then().statusCode(200);
+    }
+
+    private void remove(String id) {
+        given().contentType(ContentType.JSON)
+                .body("{\"action\":\"REMOVE\",\"reason\":\"Related test\"}")
+                .when().patch("/api/v1/moderation/promotions/" + id)
+                .then().statusCode(200);
+    }
+
+    private record CreatedPromotion(String id, String slug) {}
 }

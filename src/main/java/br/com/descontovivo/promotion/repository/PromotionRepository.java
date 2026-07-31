@@ -72,6 +72,46 @@ public class PromotionRepository implements PanacheRepositoryBase<PromotionEntit
         return count(sb.toString(), params.toArray());
     }
 
+    public List<PromotionEntity> listRelatedPublished(UUID promotionId, List<String> categories,
+                                                       int page, int size) {
+        if (categories == null || categories.isEmpty()) return List.of();
+
+        return getEntityManager().createQuery("""
+                        SELECT DISTINCT p
+                        FROM PromotionEntity p JOIN p.categories category
+                        WHERE p.status = :status
+                          AND p.publishAt <= :now
+                          AND p.id <> :promotionId
+                          AND category IN :categories
+                        ORDER BY p.publishAt DESC, p.id DESC
+                        """, PromotionEntity.class)
+                .setParameter("status", PromotionStatus.PUBLISHED)
+                .setParameter("now", OffsetDateTime.now())
+                .setParameter("promotionId", promotionId)
+                .setParameter("categories", categories)
+                .setFirstResult(page * size)
+                .setMaxResults(size)
+                .getResultList();
+    }
+
+    public long countRelatedPublished(UUID promotionId, List<String> categories) {
+        if (categories == null || categories.isEmpty()) return 0;
+
+        return getEntityManager().createQuery("""
+                        SELECT COUNT(DISTINCT p.id)
+                        FROM PromotionEntity p JOIN p.categories category
+                        WHERE p.status = :status
+                          AND p.publishAt <= :now
+                          AND p.id <> :promotionId
+                          AND category IN :categories
+                        """, Long.class)
+                .setParameter("status", PromotionStatus.PUBLISHED)
+                .setParameter("now", OffsetDateTime.now())
+                .setParameter("promotionId", promotionId)
+                .setParameter("categories", categories)
+                .getSingleResult();
+    }
+
     public List<PromotionEntity> listByStatus(PromotionStatus status, int page, int size) {
         return find("status", Sort.by("createdAt").descending(), status)
                 .page(Page.of(page, size))

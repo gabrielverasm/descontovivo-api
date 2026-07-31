@@ -55,6 +55,23 @@ public class PromotionResource {
         return promotionService.findPublishedBySlug(slug);
     }
 
+    @GET
+    @Path("/{slug}/related")
+    @PermitAll
+    @Operation(summary = "List related published promotions", description = "Lists other public promotions that share at least one category")
+    @APIResponse(responseCode = "200", description = "Paginated related promotions")
+    @APIResponse(responseCode = "404", description = "Promotion not found", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+    public PagedResponse<PromotionSummaryResponse> listRelated(
+            @PathParam("slug") String slug,
+            @QueryParam("page") @DefaultValue("0") int page,
+            @QueryParam("size") @DefaultValue("6") int size) {
+        page = Math.max(0, page);
+        size = Math.max(1, Math.min(size, 100));
+        var items = promotionService.listRelatedPublished(slug, page, size);
+        long total = promotionService.countRelatedPublished(slug);
+        return PagedResponse.of(items, page, size, total);
+    }
+
     @POST
     @Authenticated
     @SecurityRequirement(name = "BearerAuth")
