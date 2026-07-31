@@ -47,6 +47,7 @@ public class AdminImportService {
     private final StoreResolver storeResolver;
     private final RemoteImageImportService remoteImageImportService;
     private final R2StorageService r2StorageService;
+    private final PromotionCategorySelectionService categorySelectionService;
 
     @ConfigProperty(name = "admin.import.default-author", defaultValue = "gabrielveras")
     String defaultAuthor;
@@ -54,11 +55,13 @@ public class AdminImportService {
     public AdminImportService(PromotionRepository promotionRepository,
                               StoreResolver storeResolver,
                               RemoteImageImportService remoteImageImportService,
-                              R2StorageService r2StorageService) {
+                              R2StorageService r2StorageService,
+                              PromotionCategorySelectionService categorySelectionService) {
         this.promotionRepository = promotionRepository;
         this.storeResolver = storeResolver;
         this.remoteImageImportService = remoteImageImportService;
         this.r2StorageService = r2StorageService;
+        this.categorySelectionService = categorySelectionService;
     }
 
     @Transactional
@@ -86,6 +89,14 @@ public class AdminImportService {
 
         for (var item : request.items()) {
             var itemErrors = validate(item);
+            LinkedHashSet<String> resolvedCategories = null;
+            if (itemErrors.isEmpty()) {
+                try {
+                    resolvedCategories = categorySelectionService.resolve(item.categories(), item.category());
+                } catch (jakarta.ws.rs.BadRequestException e) {
+                    itemErrors.add(new AdminImportError(item.sourceId(), "categories", e.getMessage()));
+                }
+            }
             if (!itemErrors.isEmpty()) {
                 errors.addAll(itemErrors);
                 continue;
@@ -136,7 +147,7 @@ public class AdminImportService {
                         continue;
                     }
                 }
-                persist(item, batchId, importStartedAt, normalizedUrl, importedImage, callerUsername);
+                persist(item, batchId, importStartedAt, normalizedUrl, importedImage, callerUsername, resolvedCategories);
             } else {
                 // Dry run: skip validation if imageKey is present (already uploaded)
                 if (!hasValidImageKey(item.imageKey())) {
@@ -154,7 +165,8 @@ public class AdminImportService {
         return new AdminImportResponse(batchId, dryRun, created, skipped, errors);
     }
 
-    private void persist(AdminImportItemRequest item, String batchId, OffsetDateTime importStartedAt, String normalizedUrl, ImportedImage importedImage, String callerUsername) {
+    private void persist(AdminImportItemRequest item, String batchId, OffsetDateTime importStartedAt, String normalizedUrl,
+                         ImportedImage importedImage, String callerUsername, LinkedHashSet<String> resolvedCategories) {
         var store = storeResolver.findOrCreateByName(item.storeName());
 
         String slug = generateUniqueSlug(item.title());
@@ -190,7 +202,7 @@ public class AdminImportService {
         entity.setSellerName(item.sellerName());
         entity.setSoldBy(item.soldBy());
         entity.setDeliveredBy(item.deliveredBy());
-        entity.setCategories(normalizeCategories(item.categories(), item.category()));
+        entity.setCategories(resolvedCategories);
         
         // New trust signals fields
         entity.setSalesCount(item.salesCount());
@@ -203,14 +215,6 @@ public class AdminImportService {
                 ) : null);
 
         promotionRepository.persist(entity);
-    }
-
-    private java.util.Set<String> normalizeCategories(List<String> categories, String legacyCategory) {
-        List<String> source = categories != null ? categories : (isBlank(legacyCategory) ? List.of() : List.of(legacyCategory));
-        return source.stream()
-                .filter(value -> value != null && !value.isBlank())
-                .map(String::trim)
-                .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
     }
 
     private String generateUniqueSlug(String title) {
@@ -234,13 +238,6 @@ public class AdminImportService {
         if (isBlank(item.marketplace())) errors.add(new AdminImportError(item.sourceId(), "marketplace", "marketplace obrigatório"));
         if (item.currentPrice() == null || item.currentPrice().compareTo(BigDecimal.ZERO) <= 0) {
             errors.add(new AdminImportError(item.sourceId(), "currentPrice", "currentPrice obrigatório e maior que zero"));
-        }
-        if (item.categories() != null) {
-            item.categories().stream()
-                    .filter(category -> category == null || category.isBlank() || !promotionRepository.categoryExists(category.trim()))
-                    .findFirst()
-                    .ifPresent(category -> errors.add(new AdminImportError(
-                            item.sourceId(), "categories", "Categoria não encontrada: " + category)));
         }
         if (item.originalPrice() != null && item.currentPrice() != null
                 && item.originalPrice().compareTo(item.currentPrice()) < 0) {

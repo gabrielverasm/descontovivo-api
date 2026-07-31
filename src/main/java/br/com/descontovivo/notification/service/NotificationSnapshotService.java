@@ -30,9 +30,11 @@ public class NotificationSnapshotService {
      */
     @Transactional
     public PublicPromotionSnapshot publicPromotionSnapshot() {
-        long count = promotionRepository.countPublishedVisible();
-        var latestPublishedAt = promotionRepository.findLatestPublishedAt().orElse(null);
-        return new PublicPromotionSnapshot(count, latestPublishedAt);
+        var snapshot = promotionRepository.publicFeedSnapshot();
+        return new PublicPromotionSnapshot(
+                snapshot.publishedCount(),
+                snapshot.latestPromotionId(),
+                snapshot.latestPublishedAt());
     }
 
     /**

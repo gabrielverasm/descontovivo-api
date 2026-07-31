@@ -468,7 +468,7 @@ class ModerationResourceTest {
                 {
                     "action": "EDIT",
                     "reason": "Múltiplas categorias",
-                    "categories": ["Casa", "Ofertas", "Casa"]
+                    "categories": ["Casa", "Ofertas"]
                 }
             """)
             .when().patch("/api/v1/moderation/promotions/" + id)
@@ -512,13 +512,46 @@ class ModerationResourceTest {
             .body("""
                 {
                     "action": "EDIT",
-                    "reason": "Categoria inválida",
-                    "categories": ["Categoria inexistente"]
+                    "reason": "Criar categoria",
+                    "categories": ["Categoria nova"]
                 }
             """)
             .when().patch("/api/v1/moderation/promotions/" + id)
             .then()
-            .statusCode(400);
+            .statusCode(200)
+            .body("category", is("Categoria nova"))
+            .body("categories", contains("Categoria nova"));
+    }
+
+    @Test
+    @TestSecurity(user = "mod-user", roles = {"user", "moderator"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "mod-user-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "preferred_username", value = "mod-user")
+    })
+    void shouldValidateCategoriesBeforePromotingImage() {
+        var id = createPromotion();
+        mockR2.setShouldFailOnPromote(true);
+        try {
+            given()
+                .contentType(ContentType.JSON)
+                .body("""
+                    {
+                        "action": "EDIT",
+                        "reason": "Categorias inválidas",
+                        "categories": ["A", "B", "C", "D", "E"],
+                        "imageKey": "temp/promotions/2026/07/category-validation.webp"
+                    }
+                """)
+                .when().patch("/api/v1/moderation/promotions/" + id)
+                .then()
+                .statusCode(400);
+        } finally {
+            mockR2.setShouldFailOnPromote(false);
+        }
+        assertTrue(mockR2.getDeletedKeys().isEmpty(),
+                "Category validation must not delete the promotion's existing image");
     }
 
     @Test
@@ -862,6 +895,7 @@ class ModerationResourceTest {
                     "url": "https://shopee.com.br/produto",
                     "currentPrice": 89.90,
                     "storeName": "Shopee",
+                    "categories": ["Nova inspeção", "Saúde"],
                     "couponCode": "CUPOM10",
                     "availability": "UNAVAILABLE",
                     "priceSignal": "GREAT_PRICE",
@@ -878,9 +912,10 @@ class ModerationResourceTest {
             .body("couponCode", is("CUPOM10"))
             .body("availability", is("UNAVAILABLE"))
             .body("priceSignal", is("GREAT_PRICE"))
+            .body("category", is("Nova inspeção"))
+            .body("categories", contains("Nova inspeção", "Saúde"))
             .body("soldBy", nullValue())
             .body("deliveredBy", nullValue())
-            .body("category", nullValue())
             .body("officialStore", is(false))
             .body("trustSignals", empty());
     }

@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -78,6 +79,59 @@ class NotificationSnapshotServiceTest {
                 "Expected at least 1 published promotion, got: " + snapshot.publishedCount());
         assertNotNull(snapshot.latestPublishedAt(),
                 "Expected non-null latestPublishedAt when published promotions exist");
+        assertNotNull(snapshot.latestPromotionId(),
+                "Expected the identity of the first visible promotion");
+        assertTrue(promotionRepository.listPublished(0, 10_000, null, null, null).contains(promo));
+    }
+
+    @Test
+    @Transactional
+    void publicPromotionSnapshot_usesTheSameFirstPromotionAsThePublicFeed() {
+        StoreEntity store = getOrCreateStore();
+        OffsetDateTime now = OffsetDateTime.now();
+        PromotionEntity firstOnHome = createPromotion(store, PromotionStatus.PUBLISHED,
+                now.minusSeconds(1), now.minusDays(2));
+        PromotionEntity newerPublishedAtButOlderOnHome = createPromotion(store, PromotionStatus.PUBLISHED,
+                now.minusDays(1), now.minusMinutes(1));
+        promotionRepository.persist(firstOnHome);
+        promotionRepository.persist(newerPublishedAtButOlderOnHome);
+        promotionRepository.flush();
+
+        PublicPromotionSnapshot snapshot = snapshotService.publicPromotionSnapshot();
+        PromotionEntity listedFirst = promotionRepository.listPublished(0, 1, null, null, null).getFirst();
+
+        assertEquals(listedFirst.getId(), snapshot.latestPromotionId());
+        assertEquals(listedFirst.getPublishedAt(), snapshot.latestPublishedAt());
+    }
+
+    @Test
+    @Transactional
+    void publicFeedUsesIdDescendingAsStableTieBreakerForEqualPublishAt() {
+        StoreEntity store = getOrCreateStore();
+        OffsetDateTime tiedPublishAt = OffsetDateTime.now().minusMinutes(10);
+        PromotionEntity lowerId = createPromotion(store, PromotionStatus.PUBLISHED,
+                tiedPublishAt, tiedPublishAt.minusMinutes(1));
+        PromotionEntity higherId = createPromotion(store, PromotionStatus.PUBLISHED,
+                tiedPublishAt, tiedPublishAt.minusMinutes(2));
+        promotionRepository.persist(lowerId);
+        promotionRepository.persist(higherId);
+        promotionRepository.flush();
+
+        var expected = List.of(lowerId.getId(), higherId.getId()).stream()
+                .sorted(java.util.Comparator.comparing(UUID::toString).reversed())
+                .toList();
+
+        var firstRead = promotionRepository.listPublished(0, 10_000, null, null, null).stream()
+                .map(PromotionEntity::getId)
+                .filter(id -> id.equals(lowerId.getId()) || id.equals(higherId.getId()))
+                .toList();
+        var secondRead = promotionRepository.listPublished(0, 10_000, null, null, null).stream()
+                .map(PromotionEntity::getId)
+                .filter(id -> id.equals(lowerId.getId()) || id.equals(higherId.getId()))
+                .toList();
+
+        assertEquals(expected, firstRead);
+        assertEquals(firstRead, secondRead);
     }
 
     @Test
@@ -103,6 +157,8 @@ class NotificationSnapshotServiceTest {
         long countAfter = snapshotService.publicPromotionSnapshot().publishedCount();
         assertEquals(countBefore, countAfter,
                 "Future promotion (publishAt > now) must NOT be counted as visible");
+        assertFalse(promotionRepository.listPublished(0, 10_000, null, null, null).contains(futurePromo));
+        assertFalse(promotionRepository.listPublished(0, 10_000, null, null, null).contains(futurePromo2));
     }
 
     @Test
@@ -118,6 +174,22 @@ class NotificationSnapshotServiceTest {
         long countAfter = snapshotService.publicPromotionSnapshot().publishedCount();
         assertEquals(countBefore, countAfter,
                 "PENDING_REVIEW promotion must NOT be counted as published visible");
+        assertFalse(promotionRepository.listPublished(0, 10_000, null, null, null).contains(draftPromo));
+    }
+
+    @Test
+    @Transactional
+    void publicPromotionSnapshot_removedPromotion_notCounted() {
+        StoreEntity store = getOrCreateStore();
+        long countBefore = snapshotService.publicPromotionSnapshot().publishedCount();
+        PromotionEntity removed = createPromotion(store, PromotionStatus.REMOVED,
+                OffsetDateTime.now().minusHours(1), OffsetDateTime.now().minusHours(1));
+        promotionRepository.persist(removed);
+
+        long countAfter = snapshotService.publicPromotionSnapshot().publishedCount();
+        assertEquals(countBefore, countAfter,
+                "REMOVED promotion must not be counted as published visible");
+        assertFalse(promotionRepository.listPublished(0, 10_000, null, null, null).contains(removed));
     }
 
     // ─── moderationPromotionSnapshot ───────────────────────────────────

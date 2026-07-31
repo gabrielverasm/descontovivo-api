@@ -9,6 +9,7 @@ import br.com.descontovivo.promotion.entity.PromotionEntity;
 import br.com.descontovivo.promotion.entity.PromotionPriceSignal;
 import br.com.descontovivo.promotion.entity.PromotionStatus;
 import br.com.descontovivo.promotion.repository.PromotionRepository;
+import br.com.descontovivo.promotion.service.PromotionCategorySelectionService;
 import br.com.descontovivo.promotion.support.PromotionNormalizer;
 import br.com.descontovivo.promotion.support.TrustSignalsHelper;
 import br.com.descontovivo.shared.security.CurrentUserProvider;
@@ -37,6 +38,7 @@ public class PromotionModerationService {
     private final CurrentUserProvider currentUserProvider;
     private final R2StorageService r2StorageService;
     private final SecurityIdentity securityIdentity;
+    private final PromotionCategorySelectionService categorySelectionService;
 
     public PromotionModerationService(PromotionRepository promotionRepository,
                                       ModerationLogRepository moderationLogRepository,
@@ -44,7 +46,8 @@ public class PromotionModerationService {
                                       StoreResolver storeResolver,
                                       CurrentUserProvider currentUserProvider,
                                       R2StorageService r2StorageService,
-                                      SecurityIdentity securityIdentity) {
+                                      SecurityIdentity securityIdentity,
+                                      PromotionCategorySelectionService categorySelectionService) {
         this.promotionRepository = promotionRepository;
         this.moderationLogRepository = moderationLogRepository;
         this.storeRepository = storeRepository;
@@ -52,6 +55,7 @@ public class PromotionModerationService {
         this.currentUserProvider = currentUserProvider;
         this.r2StorageService = r2StorageService;
         this.securityIdentity = securityIdentity;
+        this.categorySelectionService = categorySelectionService;
     }
 
     @Transactional
@@ -92,7 +96,10 @@ public class PromotionModerationService {
                 entity.setRemovedAt(now);
                 r2StorageService.deletePromotionImageIfPresent(entity.getImageKey());
             }
-            case EDIT -> applyEdits(entity, request);
+            case EDIT -> {
+                LinkedHashSet<String> resolvedCategories = resolveRequestedCategories(request);
+                applyEdits(entity, request, resolvedCategories);
+            }
         }
 
         entity.setUpdatedAt(now);
@@ -109,9 +116,10 @@ public class PromotionModerationService {
         return PromotionDetailResponse.from(entity);
     }
 
-    private void applyEdits(PromotionEntity entity, ModerationActionRequest req) {
+    private void applyEdits(PromotionEntity entity, ModerationActionRequest req,
+                            LinkedHashSet<String> resolvedCategories) {
         if (req.replaceInspectionFields()) {
-            applyInspectionReplacement(entity, req);
+            applyInspectionReplacement(entity, req, resolvedCategories);
             applyNonInspectionManualFields(entity, req);
             updateImageIfRequested(entity, req);
             return;
@@ -138,11 +146,7 @@ public class PromotionModerationService {
         if (req.sellerName() != null) entity.setSellerName(req.sellerName());
         if (req.soldBy() != null) entity.setSoldBy(req.soldBy());
         if (req.deliveredBy() != null) entity.setDeliveredBy(req.deliveredBy());
-        if (req.categories() != null) {
-            entity.setCategories(normalizeAndValidateCategories(req.categories()));
-        } else if (req.category() != null) {
-            entity.setCategories(normalizeCategories(List.of(req.category())));
-        }
+        if (resolvedCategories != null) entity.setCategories(resolvedCategories);
         
         // Apply trust signals fields
         if (req.salesCount() != null) {
@@ -186,7 +190,8 @@ public class PromotionModerationService {
         if (req.priceSignal() != null) entity.setPriceSignal(parsePriceSignal(req.priceSignal()));
     }
 
-    private void applyInspectionReplacement(PromotionEntity entity, ModerationActionRequest req) {
+    private void applyInspectionReplacement(PromotionEntity entity, ModerationActionRequest req,
+                                            LinkedHashSet<String> resolvedCategories) {
         entity.setMarketplace(blankToNull(req.marketplace()));
         entity.setTitle(PromotionNormalizer.normalizeTitle(req.title()));
         entity.setUrl(req.url());
@@ -198,11 +203,7 @@ public class PromotionModerationService {
         entity.setSellerName(blankToNull(req.sellerName()));
         entity.setSoldBy(blankToNull(req.soldBy()));
         entity.setDeliveredBy(blankToNull(req.deliveredBy()));
-        if (req.categories() != null) {
-            entity.setCategories(normalizeAndValidateCategories(req.categories()));
-        } else if (req.category() != null) {
-            entity.setCategories(normalizeCategories(blankToNull(req.category()) == null ? List.of() : List.of(req.category())));
-        }
+        if (resolvedCategories != null) entity.setCategories(resolvedCategories);
         entity.setSalesCount(req.salesCount());
         entity.setProductRating(req.productRating());
         entity.setSellerRating(req.sellerRating());
@@ -217,23 +218,9 @@ public class PromotionModerationService {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
-    private LinkedHashSet<String> normalizeCategories(List<String> categories) {
-        var normalized = new LinkedHashSet<String>();
-        for (String category : categories) {
-            String value = blankToNull(category);
-            if (value != null) normalized.add(value);
-        }
-        return normalized;
-    }
-
-    private LinkedHashSet<String> normalizeAndValidateCategories(List<String> categories) {
-        LinkedHashSet<String> normalized = normalizeCategories(categories);
-        for (String category : normalized) {
-            if (!promotionRepository.categoryExists(category)) {
-                throw new jakarta.ws.rs.BadRequestException("Categoria não encontrada: " + category);
-            }
-        }
-        return normalized;
+    private LinkedHashSet<String> resolveRequestedCategories(ModerationActionRequest request) {
+        if (request.categories() == null && request.category() == null) return null;
+        return categorySelectionService.resolve(request.categories(), request.category());
     }
 
     private PromotionPriceSignal parsePriceSignal(String value) {

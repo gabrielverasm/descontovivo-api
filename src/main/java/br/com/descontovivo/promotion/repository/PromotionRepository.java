@@ -8,7 +8,9 @@ import io.quarkus.panache.common.Sort;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import java.time.LocalDate;
+import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -41,7 +43,7 @@ public class PromotionRepository implements PanacheRepositoryBase<PromotionEntit
             idx++;
         }
 
-        return find(sb.toString(), Sort.by("publishAt").descending(), params.toArray())
+        return find(sb.toString(), publicFeedSort(), params.toArray())
                 .page(Page.of(page, size))
                 .list();
     }
@@ -112,17 +114,56 @@ public class PromotionRepository implements PanacheRepositoryBase<PromotionEntit
     }
 
     /**
-     * Find the publishedAt timestamp of the most recently published promotion.
-     * Returns null if no published promotions exist.
+     * Find the first visible promotion using exactly the same ordering as the
+     * public feed. This keeps SSE snapshots aligned with the first home card.
      */
-    public Optional<OffsetDateTime> findLatestPublishedAt() {
+    public Optional<PromotionEntity> findLatestPublishedVisible() {
         return find("status = ?1 and publishAt <= ?2",
-                Sort.by("publishedAt").descending(),
+                publicFeedSort(),
                 PromotionStatus.PUBLISHED, OffsetDateTime.now())
                 .page(Page.of(0, 1))
-                .stream()
-                .map(PromotionEntity::getPublishedAt)
-                .findFirst();
+                .firstResultOptional();
+    }
+
+    public Optional<OffsetDateTime> findLatestPublishedAt() {
+        return findLatestPublishedVisible().map(PromotionEntity::getPublishedAt);
+    }
+
+    /**
+     * Builds the lightweight SSE snapshot in one SQL statement, so count and
+     * head identity always come from the same database snapshot.
+     */
+    public PublicFeedSnapshot publicFeedSnapshot() {
+        Object[] row = (Object[]) getEntityManager().createNativeQuery("""
+                WITH visible AS MATERIALIZED (
+                    SELECT id, published_at, publish_at
+                    FROM promotion
+                    WHERE status = 'PUBLISHED'
+                      AND publish_at <= CURRENT_TIMESTAMP
+                )
+                SELECT
+                    COUNT(*),
+                    (SELECT id FROM visible ORDER BY publish_at DESC, id DESC LIMIT 1),
+                    (SELECT published_at FROM visible ORDER BY publish_at DESC, id DESC LIMIT 1)
+                FROM visible
+                """).getSingleResult();
+        UUID latestId = row[1] == null ? null : (UUID) row[1];
+        OffsetDateTime latestPublishedAt = switch (row[2]) {
+            case null -> null;
+            case OffsetDateTime value -> value;
+            case Instant value -> value.atOffset(ZoneOffset.UTC);
+            default -> throw new IllegalStateException(
+                    "Unexpected published_at type: " + row[2].getClass().getName());
+        };
+        return new PublicFeedSnapshot(((Number) row[0]).longValue(), latestId, latestPublishedAt);
+    }
+
+    public record PublicFeedSnapshot(long publishedCount, UUID latestPromotionId,
+                                     OffsetDateTime latestPublishedAt) {}
+
+    private static Sort publicFeedSort() {
+        return Sort.by("publishAt", Sort.Direction.Descending)
+                .and("id", Sort.Direction.Descending);
     }
 
     /**
@@ -139,7 +180,7 @@ public class PromotionRepository implements PanacheRepositoryBase<PromotionEntit
         return getEntityManager()
                 .createQuery(
                         "SELECT category, COUNT(DISTINCT p.id) FROM PromotionEntity p JOIN p.categories category " +
-                        "GROUP BY category ORDER BY LOWER(category)",
+                        "GROUP BY category ORDER BY LOWER(category), category",
                         Object[].class)
                 .getResultList();
     }
