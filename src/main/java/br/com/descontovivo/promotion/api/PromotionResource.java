@@ -51,8 +51,10 @@ public class PromotionResource {
     @Operation(summary = "Get promotion by slug")
     @APIResponse(responseCode = "200", description = "Promotion detail")
     @APIResponse(responseCode = "404", description = "Promotion not found", content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
-    public PromotionDetailResponse getBySlug(@PathParam("slug") String slug) {
-        return promotionService.findPublishedBySlug(slug);
+    public PromotionDetailResponse getBySlug(
+            @PathParam("slug") String slug,
+            @HeaderParam("User-Agent") String userAgent) {
+        return promotionService.findPublishedBySlug(slug, userAgent);
     }
 
     @GET

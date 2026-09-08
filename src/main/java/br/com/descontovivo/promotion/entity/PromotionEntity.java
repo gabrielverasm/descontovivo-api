@@ -146,6 +146,9 @@ public class PromotionEntity {
     @Column(name = "comments_count", nullable = false)
     private int commentsCount;
 
+    @Column(name = "view_count", nullable = false)
+    private int viewCount;
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
     public String getSlug() { return slug; }
@@ -190,6 +193,8 @@ public class PromotionEntity {
     public void setDislikesCount(int dislikesCount) { this.dislikesCount = dislikesCount; }
     public int getCommentsCount() { return commentsCount; }
     public void setCommentsCount(int commentsCount) { this.commentsCount = commentsCount; }
+    public int getViewCount() { return viewCount; }
+    public void setViewCount(int viewCount) { this.viewCount = viewCount; }
     public OffsetDateTime getPublishAt() { return publishAt; }
     public void setPublishAt(OffsetDateTime publishAt) { this.publishAt = publishAt; }
     public OffsetDateTime getVerifiedAt() { return verifiedAt; }

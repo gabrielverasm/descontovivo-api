@@ -7,6 +7,7 @@ import br.com.descontovivo.promotion.entity.OfferAvailability;
 import br.com.descontovivo.promotion.entity.PromotionEntity;
 import br.com.descontovivo.promotion.entity.PromotionStatus;
 import br.com.descontovivo.promotion.repository.PromotionRepository;
+import br.com.descontovivo.promotion.support.BotUserAgentDetector;
 import br.com.descontovivo.promotion.support.PromotionNormalizer;
 import br.com.descontovivo.promotion.support.SlugGenerator;
 import br.com.descontovivo.shared.api.ConflictException;
@@ -66,8 +67,12 @@ public class PromotionService {
     }
 
     @Transactional
-    public PromotionDetailResponse findPublishedBySlug(String slug) {
-        return PromotionDetailResponse.from(findPublishedEntityBySlug(slug));
+    public PromotionDetailResponse findPublishedBySlug(String slug, String userAgent) {
+        var entity = findPublishedEntityBySlug(slug);
+        if (!BotUserAgentDetector.isBot(userAgent)) {
+            entity.setViewCount(entity.getViewCount() + 1);
+        }
+        return PromotionDetailResponse.from(entity);
     }
 
     @Transactional

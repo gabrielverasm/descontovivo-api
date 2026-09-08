@@ -194,6 +194,70 @@ class PromotionResourceTest {
     }
 
     @Test
+    @TestSecurity(user = "view-count-admin", roles = {"user", "moderator", "admin"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "view-count-admin-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "view-count-admin@test.local"),
+        @Claim(key = "preferred_username", value = "view-count-admin")
+    })
+    void shouldIncrementViewCountOnEachRealBrowserRequest() {
+        var promotion = createPromotion("View count");
+        approve(promotion.id());
+
+        // Peek at the starting count with a bot User-Agent so this read doesn't itself
+        // count as a view (any RestAssured request needs *some* User-Agent to be sent).
+        given()
+            .header("User-Agent", "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)")
+            .when().get("/api/v1/promotions/{slug}", promotion.slug())
+            .then().statusCode(200).body("viewCount", is(0));
+
+        given()
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                + "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            .when().get("/api/v1/promotions/{slug}", promotion.slug())
+            .then().statusCode(200).body("viewCount", is(1));
+
+        given()
+            .header("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) "
+                + "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1")
+            .when().get("/api/v1/promotions/{slug}", promotion.slug())
+            .then().statusCode(200).body("viewCount", is(2));
+    }
+
+    @Test
+    @TestSecurity(user = "view-count-bot-admin", roles = {"user", "moderator", "admin"})
+    @OidcSecurity(claims = {
+        @Claim(key = "sub", value = "view-count-bot-admin-sub"),
+        @Claim(key = "email_verified", value = "true", type = ClaimType.BOOLEAN),
+        @Claim(key = "email", value = "view-count-bot-admin@test.local"),
+        @Claim(key = "preferred_username", value = "view-count-bot-admin")
+    })
+    void shouldNotIncrementViewCountForKnownBots() {
+        // The missing/blank-User-Agent branch is covered directly in
+        // BotUserAgentDetectorTest -- RestAssured's HTTP client always sends its own
+        // User-Agent, so that case can't be exercised reliably at the HTTP layer here.
+        var promotion = createPromotion("View count bot");
+        approve(promotion.id());
+
+        given()
+            .header("User-Agent", "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)")
+            .when().get("/api/v1/promotions/{slug}", promotion.slug())
+            .then().statusCode(200).body("viewCount", is(0));
+
+        given()
+            .header("User-Agent", "facebookexternalhit/1.1")
+            .when().get("/api/v1/promotions/{slug}", promotion.slug())
+            .then().statusCode(200).body("viewCount", is(0));
+
+        given()
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                + "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            .when().get("/api/v1/promotions/{slug}", promotion.slug())
+            .then().statusCode(200).body("viewCount", is(1));
+    }
+
+    @Test
     void shouldReturn401WhenCreatingWithoutAuth() {
         given()
             .contentType(ContentType.JSON)
