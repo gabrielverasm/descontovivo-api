@@ -32,7 +32,8 @@ public class ShopeeAffiliateOperationResource {
         try {
             JsonNode result = service.execute(new ShopeeAffiliateOperationService.ShopeeAffiliateOperationRequest(
                     request.operation(), request.keyword(), request.page(), request.limit(), request.startTime(),
-                    request.endTime(), request.purchaseStatus(), request.feedId(), request.originUrl(), request.subIds()));
+                    request.endTime(), request.validationId(), request.originUrl(), request.subIds(),
+                    request.scrollId(), request.feedMode(), request.datafeedId(), request.offset()));
             return Response.ok(result).build();
         } catch (MarketplaceInspectionException e) {
             int status = switch (e.code()) {
@@ -49,13 +50,18 @@ public class ShopeeAffiliateOperationResource {
             @NotBlank String operation,
             String keyword,
             @Min(1) @Max(10000) int page,
-            @Min(1) @Max(100) int limit,
+            // 500 because getItemFeedData allows up to 500; every other operation's own max
+            // (100) is enforced by the importer's build_operation_query.
+            @Min(1) @Max(500) int limit,
             Long startTime,
             Long endTime,
-            Integer purchaseStatus,
-            Long feedId,
+            Long validationId,
             String originUrl,
-            List<String> subIds) {
+            List<String> subIds,
+            String scrollId,
+            String feedMode,
+            String datafeedId,
+            @Min(0) Long offset) {
         public Request {
             subIds = subIds == null ? List.of() : List.copyOf(subIds);
         }
