@@ -8,6 +8,7 @@ import br.com.descontovivo.promotion.entity.OfferAvailability;
 import br.com.descontovivo.promotion.entity.PromotionEntity;
 import br.com.descontovivo.promotion.entity.PromotionPriceSignal;
 import br.com.descontovivo.promotion.entity.PromotionStatus;
+import br.com.descontovivo.promotion.inspection.InvalidAmazonUrlException;
 import br.com.descontovivo.promotion.repository.PromotionRepository;
 import br.com.descontovivo.promotion.support.PromotionNormalizer;
 import br.com.descontovivo.promotion.support.SlugGenerator;
@@ -48,6 +49,7 @@ public class AdminImportService {
     private final RemoteImageImportService remoteImageImportService;
     private final R2StorageService r2StorageService;
     private final PromotionCategorySelectionService categorySelectionService;
+    private final AmazonAffiliateLinkEnforcer amazonLinks;
 
     @ConfigProperty(name = "admin.import.default-author", defaultValue = "gabrielveras")
     String defaultAuthor;
@@ -56,12 +58,14 @@ public class AdminImportService {
                               StoreResolver storeResolver,
                               RemoteImageImportService remoteImageImportService,
                               R2StorageService r2StorageService,
-                              PromotionCategorySelectionService categorySelectionService) {
+                              PromotionCategorySelectionService categorySelectionService,
+                              AmazonAffiliateLinkEnforcer amazonLinks) {
         this.promotionRepository = promotionRepository;
         this.storeResolver = storeResolver;
         this.remoteImageImportService = remoteImageImportService;
         this.r2StorageService = r2StorageService;
         this.categorySelectionService = categorySelectionService;
+        this.amazonLinks = amazonLinks;
     }
 
     @Transactional
@@ -97,12 +101,20 @@ public class AdminImportService {
                     itemErrors.add(new AdminImportError(item.sourceId(), "categories", e.getMessage()));
                 }
             }
+            String productUrl = item.productUrl();
+            if (itemErrors.isEmpty()) {
+                try {
+                    productUrl = amazonLinks.enforce(item.productUrl());
+                } catch (InvalidAmazonUrlException e) {
+                    itemErrors.add(new AdminImportError(item.sourceId(), "productUrl", e.getMessage()));
+                }
+            }
             if (!itemErrors.isEmpty()) {
                 errors.addAll(itemErrors);
                 continue;
             }
 
-            String normalizedUrl = PromotionNormalizer.normalizeUrl(item.productUrl());
+            String normalizedUrl = PromotionNormalizer.normalizeUrl(productUrl);
             OffsetDateTime publishedAt = item.publishAt() != null ? item.publishAt() : importStartedAt;
 
             warnAboutFuturePublications(seenSourceIds.get(item.sourceId()), item.sourceId(), normalizedUrl, importStartedAt);
@@ -147,7 +159,7 @@ public class AdminImportService {
                         continue;
                     }
                 }
-                persist(item, batchId, importStartedAt, normalizedUrl, importedImage, callerUsername, resolvedCategories);
+                persist(item, productUrl, batchId, importStartedAt, normalizedUrl, importedImage, callerUsername, resolvedCategories);
             } else {
                 // Dry run: skip validation if imageKey is present (already uploaded)
                 if (!hasValidImageKey(item.imageKey())) {
@@ -165,7 +177,7 @@ public class AdminImportService {
         return new AdminImportResponse(batchId, dryRun, created, skipped, errors);
     }
 
-    private void persist(AdminImportItemRequest item, String batchId, OffsetDateTime importStartedAt, String normalizedUrl,
+    private void persist(AdminImportItemRequest item, String productUrl, String batchId, OffsetDateTime importStartedAt, String normalizedUrl,
                          ImportedImage importedImage, String callerUsername, LinkedHashSet<String> resolvedCategories) {
         var store = storeResolver.findOrCreateByName(item.storeName());
 
@@ -177,7 +189,7 @@ public class AdminImportService {
         var entity = new PromotionEntity();
         entity.setSlug(slug);
         entity.setTitle(PromotionNormalizer.normalizeTitle(item.title()));
-        entity.setUrl(item.productUrl());
+        entity.setUrl(productUrl);
         entity.setNormalizedUrl(normalizedUrl);
         entity.setCurrentPrice(item.currentPrice());
         entity.setOriginalPrice(item.originalPrice());

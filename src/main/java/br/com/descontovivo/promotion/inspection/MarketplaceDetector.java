@@ -11,9 +11,9 @@ import java.util.Set;
 public class MarketplaceDetector {
     private static final Map<MarketplaceCode, Set<String>> HOSTS = Map.of(
             MarketplaceCode.SHOPEE, Set.of("shopee.com.br", "www.shopee.com.br", "s.shopee.com.br"),
-            MarketplaceCode.AMAZON, Set.of("amazon.com.br", "www.amazon.com.br", "amzn.to"),
+            MarketplaceCode.AMAZON, Set.of("amazon.com.br", "www.amazon.com.br", "amzn.to", "link.amazon"),
             MarketplaceCode.MERCADO_LIVRE, Set.of("mercadolivre.com.br", "www.mercadolivre.com.br", "produto.mercadolivre.com.br", "meli.la"),
-            MarketplaceCode.MAGALU, Set.of("magazineluiza.com.br", "www.magazineluiza.com.br", "mglu.io"),
+            MarketplaceCode.MAGALU, Set.of("magazineluiza.com.br", "www.magazineluiza.com.br", "mglu.io", "magazineluiza.onelink.me"),
             MarketplaceCode.ALIEXPRESS, Set.of("aliexpress.com", "www.aliexpress.com", "pt.aliexpress.com", "s.click.aliexpress.com")
     );
 

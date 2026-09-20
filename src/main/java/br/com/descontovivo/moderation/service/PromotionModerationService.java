@@ -9,6 +9,7 @@ import br.com.descontovivo.promotion.entity.PromotionEntity;
 import br.com.descontovivo.promotion.entity.PromotionPriceSignal;
 import br.com.descontovivo.promotion.entity.PromotionStatus;
 import br.com.descontovivo.promotion.repository.PromotionRepository;
+import br.com.descontovivo.promotion.service.AmazonAffiliateLinkEnforcer;
 import br.com.descontovivo.promotion.service.PromotionCategorySelectionService;
 import br.com.descontovivo.promotion.support.PromotionNormalizer;
 import br.com.descontovivo.promotion.support.TrustSignalsHelper;
@@ -39,6 +40,7 @@ public class PromotionModerationService {
     private final R2StorageService r2StorageService;
     private final SecurityIdentity securityIdentity;
     private final PromotionCategorySelectionService categorySelectionService;
+    private final AmazonAffiliateLinkEnforcer amazonLinks;
 
     public PromotionModerationService(PromotionRepository promotionRepository,
                                       ModerationLogRepository moderationLogRepository,
@@ -47,7 +49,8 @@ public class PromotionModerationService {
                                       CurrentUserProvider currentUserProvider,
                                       R2StorageService r2StorageService,
                                       SecurityIdentity securityIdentity,
-                                      PromotionCategorySelectionService categorySelectionService) {
+                                      PromotionCategorySelectionService categorySelectionService,
+                                      AmazonAffiliateLinkEnforcer amazonLinks) {
         this.promotionRepository = promotionRepository;
         this.moderationLogRepository = moderationLogRepository;
         this.storeRepository = storeRepository;
@@ -56,6 +59,7 @@ public class PromotionModerationService {
         this.r2StorageService = r2StorageService;
         this.securityIdentity = securityIdentity;
         this.categorySelectionService = categorySelectionService;
+        this.amazonLinks = amazonLinks;
     }
 
     @Transactional
@@ -126,8 +130,9 @@ public class PromotionModerationService {
         }
         if (req.title() != null) entity.setTitle(PromotionNormalizer.normalizeTitle(req.title()));
         if (req.url() != null) {
-            entity.setUrl(req.url());
-            entity.setNormalizedUrl(PromotionNormalizer.normalizeUrl(req.url()));
+            String url = amazonLinks.enforce(req.url());
+            entity.setUrl(url);
+            entity.setNormalizedUrl(PromotionNormalizer.normalizeUrl(url));
         }
         if (req.currentPrice() != null) entity.setCurrentPrice(req.currentPrice());
         if (req.originalPrice() != null) entity.setOriginalPrice(req.originalPrice());
@@ -194,8 +199,9 @@ public class PromotionModerationService {
                                             LinkedHashSet<String> resolvedCategories) {
         entity.setMarketplace(blankToNull(req.marketplace()));
         entity.setTitle(PromotionNormalizer.normalizeTitle(req.title()));
-        entity.setUrl(req.url());
-        entity.setNormalizedUrl(PromotionNormalizer.normalizeUrl(req.url()));
+        String url = amazonLinks.enforce(req.url());
+        entity.setUrl(url);
+        entity.setNormalizedUrl(PromotionNormalizer.normalizeUrl(url));
         entity.setCurrentPrice(req.currentPrice());
         entity.setOriginalPrice(req.originalPrice());
         entity.setStore(blankToNull(req.storeName()) == null
