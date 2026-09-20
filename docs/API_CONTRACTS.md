@@ -43,6 +43,12 @@ Resposta paginada:
 }
 ```
 
+> **`verifiedAt`** (`string` ISO-8601 com offset, ou `null`): data da última verificação do preço/oferta.
+> Presente em `PromotionSummaryResponse` (itens de `content`) e em `PromotionDetailResponse`
+> (`GET /promotions/{slug}` e respostas de moderação). É um campo novo e aditivo: clientes que o
+> ignoram continuam funcionando. Promoções criadas por `POST /promotions` vêm com `null`; o import
+> preenche com o `verifiedAt` do item ou com o instante do import.
+
 ---
 
 ## Endpoints Autenticados (Bearer token obrigatório)
@@ -127,6 +133,19 @@ Resposta: `201` com `PromotionDetailResponse`. Status inicial: `PENDING_REVIEW`.
 > - Salva a promoção com `imageKey` e `imageUrl` finais com prefixo `promotions/`. A resposta pública expõe apenas `imageUrl`.
 > - Nenhuma promoção criada fica apontando para `temp/promotions/`.
 
+#### Garantia do link da Amazon (`app.amazon.enforce-tag`)
+
+Com `app.amazon.enforce-tag=true` (env `AMAZON_ENFORCE_TAG`; **padrão `false`**), a API grava sempre o
+link canônico da Amazon, tanto em `POST /promotions` quanto na edição (`PATCH /moderation/promotions/{id}`,
+`url`) e no import (`productUrl`, inclusive `dryRun`):
+
+- Vale para links de `amazon.com.br`, `www.amazon.com.br`, `amzn.to` e `link.amazon` (por host, não pelo campo `marketplace`). Outros links não são alterados.
+- Formato: `https://www.amazon.com.br/dp/{ASIN}?{parâmetros em ordem alfabética}`. O ASIN vem de `/dp/`, `/gp/product/` ou `/gp/aw/d/`.
+- Só `th`, `psc` e `smid` são mantidos; `tag` é sempre a de `app.amazon.affiliate-tag` (`descontovivoo-20`). Qualquer outra tag é substituída (as tags aposentadas `descontoviv0f-20`, `descontovivo.com-20` e `gatry0b-20` são registradas no log).
+- Link com ASIN nunca usa a rede. Link curto (`amzn.to`, `link.amazon`) é resolvido na hora, seguindo no máximo 6 redirecionamentos (só lendo o `Location`, sem baixar a página).
+- Link curto que não resolve, ou link da Amazon sem ASIN (busca, home): `POST /promotions` e a edição respondem **422** (`ApiErrorResponse`, mensagem pedindo o link completo do SiteStripe); no import o item vai para `errors` com `field: "productUrl"` e a mesma mensagem.
+- `url`/`normalizedUrl` gravados e devolvidos já são os canônicos, então a deduplicação por URL compara o link canônico.
+
 ### POST /uploads/promotion-image/presign — Gerar URL de upload
 
 Request:
@@ -187,6 +206,7 @@ Remove o voto do usuário autenticado.
 | Método | Endpoint                             | Descrição                                    |
 |--------|--------------------------------------|----------------------------------------------|
 | POST   | /admin/promotions/import             | Importar promoções via JSON                  |
+| POST   | /admin/promotions/inspect-url        | Inspecionar link de marketplace (role `admin`/`moderator`) |
 | POST   | /admin/promotions/images/backfill    | Backfill imagens externas para R2            |
 | GET    | /admin/account/data-requests         | Listar solicitações de dados (admin)         |
 | PATCH  | /admin/account/data-requests/{id}    | Atualizar status de solicitação (admin)      |
@@ -292,7 +312,25 @@ DELETE FROM promotion WHERE source = 'ADMIN_JSON_IMPORT' AND batch_id = '<batchI
 
 Campos persistidos por item: `marketplace`, `sellerName`, `soldBy`, `deliveredBy`, `category`, `sourceId`, `batchId`, `source`, `authorUsername`, `publishAt`, `verifiedAt`.
 
+Com `app.amazon.enforce-tag=true`, `productUrl` de links da Amazon é gravado no formato canônico com a tag de afiliado; link curto não resolvido gera erro do item (`field: "productUrl"`). Detalhes em *Garantia do link da Amazon*, em `POST /promotions`.
+
 ---
+
+### POST /admin/promotions/inspect-url
+
+Autorização: role `admin` ou `moderator`. Corpo: `{ "url": "https://..." }`. Devolve os dados que o marketplace
+oferece (`PromotionInspectionResponse`) mais `missingFields` (o que deve ser preenchido à mão) e `warnings`.
+
+Erros: `400 INVALID_URL` (host desconhecido ou link da Amazon sem ASIN), `422 UNSUPPORTED_MARKETPLACE`,
+`422 INSPECTION_FAILED/INSPECTION_BLOCKED`, `503 IMPORTER_UNAVAILABLE` (Shopee).
+
+**Amazon** (sem scraping; só o que o próprio link informa):
+
+- `marketplace: "AMAZON"`, `storeName: "Amazon"`, `productUrl` e `affiliateUrl` iguais ao link canônico com a tag de afiliado (mesmas regras da seção *Garantia do link da Amazon*).
+- `missingFields`: `title`, `currentPrice`, `originalPrice`, `remoteImageUrl`, `sellerName`, `soldBy`, `deliveredBy`, `salesCount`, `productRating`, `sellerRating`, `category`.
+- `warnings` traz o aviso de duplicidade quando já existe promoção pendente ou publicada do mesmo ASIN: `Já existe promoção deste produto (ASIN X): slug1, slug2`.
+- Link com ASIN nunca depende de rede. Link curto (`amzn.to`, `link.amazon`) que não resolve **não é erro**: a resposta é `200` com `marketplace`, `storeName`, `missingFields`, `productUrl`/`affiliateUrl` nulos e o aviso `Não foi possível resolver o link curto; cole o link completo do SiteStripe`. O mesmo vale se o link curto resolver para uma página sem produto.
+- O endpoint reconhece `link.amazon` e `magazineluiza.onelink.me` como hosts de Amazon e Magalu, respectivamente.
 
 ### POST /admin/promotions/images/backfill?dryRun=true&limit=20
 
@@ -373,6 +411,9 @@ Edição (campos flat no DTO):
 ```json
 { "action": "EDIT", "reason": "Correção de título", "title": "Título corrigido" }
 ```
+
+Com `app.amazon.enforce-tag=true`, o campo `url` de uma edição com link da Amazon é gravado no formato canônico
+(veja *Garantia do link da Amazon* em `POST /promotions`); link curto não resolvido ou sem ASIN retorna `422`.
 
 #### Troca de imagem na edição
 

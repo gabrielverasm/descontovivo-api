@@ -43,7 +43,8 @@ public record PromotionSummaryResponse(
         BigDecimal productRating,
         BigDecimal sellerRating,
         Boolean officialStore,
-        List<String> trustSignals
+        List<String> trustSignals,
+        OffsetDateTime verifiedAt
 ) {
     @RegisterForReflection
     public record StoreRef(String slug, String name) {}
@@ -63,7 +64,8 @@ public record PromotionSummaryResponse(
                 e.getProductRating(),
                 e.getSellerRating(),
                 e.getOfficialStore(),
-                TrustSignalsHelper.parseTrustSignalsFromJson(e.getTrustSignals())
+                TrustSignalsHelper.parseTrustSignalsFromJson(e.getTrustSignals()),
+                e.getVerifiedAt()
         );
     }
 }

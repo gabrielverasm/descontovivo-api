@@ -2,7 +2,7 @@
 
 ## Versão atual
 
-**0.6.0** (minor)
+**0.7.0** (minor)
 
 ## Convenção
 
@@ -29,6 +29,7 @@ Usamos [SemVer](https://semver.org/) simplificado:
 
 | Versão | Data       | Descrição |
 |--------|------------|-----------|
+| 0.7.0  | 2026-09-20 | Autopreenchimento da Amazon no inspect-url (canonicalizador de link com tag de afiliado, resolução de link curto, aviso de duplicidade por ASIN), garantia de link canônico da Amazon em criar/editar/importar atrás de `app.amazon.enforce-tag`, hosts `link.amazon` e `magazineluiza.onelink.me` no detector e campo `verifiedAt` nas respostas públicas de promoção |
 | 0.6.0  | 2026-08-14 | Adiciona proxy administrativo autenticado para as operações da Shopee Affiliate Open API |
 | 0.5.0  | 2026-07-31 | Adiciona endpoint paginado de ofertas relacionadas exclusivamente por categorias e visibilidade pública |
 | 0.4.1  | 2026-07-31 | Permite categorias derivadas novas com política uniforme, ordena o feed deterministicamente e produz snapshot público consistente para o SSE |

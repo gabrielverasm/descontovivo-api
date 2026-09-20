@@ -122,6 +122,18 @@ public class PromotionRepository implements PanacheRepositoryBase<PromotionEntit
         return count("normalizedUrl = ?1 and createdDate = ?2", normalizedUrl, createdDate) > 0;
     }
 
+    /** Promoções pendentes ou publicadas do mesmo ASIN da Amazon; o ASIN deve ter sido validado (10 alfanuméricos). */
+    public List<PromotionEntity> findActiveByAmazonAsin(String asin, int limit) {
+        String needle = asin.toLowerCase();
+        return find("status in ?1 and (sourceId = ?2 or lower(normalizedUrl) like ?3 "
+                        + "or lower(normalizedUrl) like ?4 or lower(normalizedUrl) like ?5)",
+                Sort.by("createdAt").descending(),
+                List.of(PromotionStatus.PENDING_REVIEW, PromotionStatus.PUBLISHED), asin,
+                "%/dp/" + needle + "%", "%/gp/product/" + needle + "%", "%/gp/aw/d/" + needle + "%")
+                .page(Page.ofSize(limit))
+                .list();
+    }
+
     public List<OffsetDateTime> findRelevantEquivalentPublishedAt(String sourceId,
                                                                   String normalizedUrl,
                                                                   OffsetDateTime cutoff) {

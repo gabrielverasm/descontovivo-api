@@ -45,7 +45,8 @@ public record PromotionDetailResponse(
         BigDecimal productRating,
         BigDecimal sellerRating,
         Boolean officialStore,
-        List<String> trustSignals
+        List<String> trustSignals,
+        OffsetDateTime verifiedAt
 ) {
     public static PromotionDetailResponse from(PromotionEntity e) {
         return new PromotionDetailResponse(
@@ -62,7 +63,8 @@ public record PromotionDetailResponse(
                 e.getProductRating(),
                 e.getSellerRating(),
                 e.getOfficialStore(),
-                TrustSignalsHelper.parseTrustSignalsFromJson(e.getTrustSignals())
+                TrustSignalsHelper.parseTrustSignalsFromJson(e.getTrustSignals()),
+                e.getVerifiedAt()
         );
     }
 }

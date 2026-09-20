@@ -32,15 +32,18 @@ public class PromotionService {
     private final StoreResolver storeResolver;
     private final CurrentUserProvider currentUserProvider;
     private final R2StorageService r2StorageService;
+    private final AmazonAffiliateLinkEnforcer amazonLinks;
 
     public PromotionService(PromotionRepository promotionRepository,
                             StoreResolver storeResolver,
                             CurrentUserProvider currentUserProvider,
-                            R2StorageService r2StorageService) {
+                            R2StorageService r2StorageService,
+                            AmazonAffiliateLinkEnforcer amazonLinks) {
         this.promotionRepository = promotionRepository;
         this.storeResolver = storeResolver;
         this.currentUserProvider = currentUserProvider;
         this.r2StorageService = r2StorageService;
+        this.amazonLinks = amazonLinks;
     }
 
     @Transactional
@@ -79,9 +82,10 @@ public class PromotionService {
     public PromotionDetailResponse create(PromotionCreateRequest request) {
         var user = currentUserProvider.requireVerifiedUser();
 
-        StoreEntity store = storeResolver.resolve(request.storeName(), request.storeSlug(), request.url());
+        String url = amazonLinks.enforce(request.url());
+        StoreEntity store = storeResolver.resolve(request.storeName(), request.storeSlug(), url);
 
-        String normalizedUrl = PromotionNormalizer.normalizeUrl(request.url());
+        String normalizedUrl = PromotionNormalizer.normalizeUrl(url);
         LocalDate today = LocalDate.now(SAO_PAULO);
 
         if (promotionRepository.existsDuplicateByUrl(normalizedUrl, today)) {
@@ -97,7 +101,7 @@ public class PromotionService {
         var entity = new PromotionEntity();
         entity.setSlug(slug);
         entity.setTitle(PromotionNormalizer.normalizeTitle(request.title()));
-        entity.setUrl(request.url());
+        entity.setUrl(url);
         entity.setNormalizedUrl(normalizedUrl);
         entity.setCurrentPrice(request.currentPrice());
         entity.setOriginalPrice(request.originalPrice());
