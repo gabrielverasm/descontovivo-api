@@ -39,17 +39,20 @@ public class ShopeeAffiliateOperationService {
             throw new MarketplaceInspectionException("IMPORTER_UNAVAILABLE", "Internal importer token is not configured");
         }
         try {
-            String body = objectMapper.writeValueAsString(Map.of(
-                    "operation", request.operation(),
-                    "keyword", Optional.ofNullable(request.keyword()).orElse(""),
-                    "page", request.page(),
-                    "limit", request.limit(),
-                    "startTime", Optional.ofNullable(request.startTime()).orElse(0L),
-                    "endTime", Optional.ofNullable(request.endTime()).orElse(0L),
-                    "purchaseStatus", Optional.ofNullable(request.purchaseStatus()).orElse(-1),
-                    "feedId", Optional.ofNullable(request.feedId()).orElse(0L),
-                    "originUrl", Optional.ofNullable(request.originUrl()).orElse(""),
-                    "subIds", request.subIds()));
+            String body = objectMapper.writeValueAsString(Map.ofEntries(
+                    Map.entry("operation", request.operation()),
+                    Map.entry("keyword", Optional.ofNullable(request.keyword()).orElse("")),
+                    Map.entry("page", request.page()),
+                    Map.entry("limit", request.limit()),
+                    Map.entry("startTime", Optional.ofNullable(request.startTime()).orElse(0L)),
+                    Map.entry("endTime", Optional.ofNullable(request.endTime()).orElse(0L)),
+                    Map.entry("validationId", Optional.ofNullable(request.validationId()).orElse(0L)),
+                    Map.entry("originUrl", Optional.ofNullable(request.originUrl()).orElse("")),
+                    Map.entry("subIds", request.subIds()),
+                    Map.entry("scrollId", Optional.ofNullable(request.scrollId()).orElse("")),
+                    Map.entry("feedMode", Optional.ofNullable(request.feedMode()).orElse("")),
+                    Map.entry("datafeedId", Optional.ofNullable(request.datafeedId()).orElse("")),
+                    Map.entry("offset", Optional.ofNullable(request.offset()).orElse(0L))));
             HttpRequest httpRequest = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl + "/internal/v1/shopee/affiliate-operation"))
                     .timeout(timeout)
@@ -86,10 +89,13 @@ public class ShopeeAffiliateOperationService {
             int limit,
             Long startTime,
             Long endTime,
-            Integer purchaseStatus,
-            Long feedId,
+            Long validationId,
             String originUrl,
-            java.util.List<String> subIds) {
+            java.util.List<String> subIds,
+            String scrollId,
+            String feedMode,
+            String datafeedId,
+            Long offset) {
         public ShopeeAffiliateOperationRequest {
             subIds = subIds == null ? java.util.List.of() : java.util.List.copyOf(subIds);
         }
